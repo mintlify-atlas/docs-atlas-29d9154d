@@ -1,0 +1,151 @@
+{
+  "projectType": "saas",
+  "projectName": "Noteverse",
+  "projectDescription": "A modern, real-time collaborative note-sharing platform with social features built with Next.js and novel.sh",
+  "theme": "palm",
+  "primaryColor": "#2563eb",
+  "lightColor": "#60a5fa",
+  "darkColor": "#1e40af",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/real-time-collaboration",
+              "features/rich-text-editor",
+              "features/note-sharing",
+              "features/comments-upvotes",
+              "features/full-text-search"
+            ]
+          },
+          {
+            "group": "User Guide",
+            "pages": [
+              "guide/creating-notes",
+              "guide/collaborating",
+              "guide/sharing-notes",
+              "guide/organizing-notes",
+              "guide/search"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/environment-variables",
+              "configuration/authentication",
+              "configuration/database",
+              "configuration/socket-server"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/overview",
+              "deployment/vercel",
+              "deployment/docker"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Authentication",
+            "pages": [
+              "api/auth/signup",
+              "api/auth/signin",
+              "api/auth/verify"
+            ]
+          },
+          {
+            "group": "Notes",
+            "pages": [
+              "api/notes/create",
+              "api/notes/get",
+              "api/notes/update",
+              "api/notes/delete",
+              "api/notes/publish"
+            ]
+          },
+          {
+            "group": "Social",
+            "pages": [
+              "api/social/comments",
+              "api/social/upvotes",
+              "api/social/sharing"
+            ]
+          },
+          {
+            "group": "Users",
+            "pages": [
+              "api/users/profile"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Components",
+        "groups": [
+          {
+            "group": "Editor",
+            "pages": [
+              "components/editor/overview",
+              "components/editor/extensions",
+              "components/editor/slash-commands",
+              "components/editor/selectors"
+            ]
+          },
+          {
+            "group": "UI Components",
+            "pages": [
+              "components/ui/buttons",
+              "components/ui/forms",
+              "components/ui/dialogs",
+              "components/ui/backgrounds"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Real-time collaborative editing with Socket.IO",
+    "Rich text editor powered by Novel.sh and TipTap",
+    "Social engagement with likes, upvotes, and comments",
+    "Full-text search across all notes",
+    "Flexible note sharing with view/edit permissions",
+    "Dark mode support with next-themes",
+    "Multilingual support",
+    "NextAuth.js authentication with email verification"
+  ],
+  "publicApiSurface": [
+    "POST /api/auth/signup",
+    "POST /api/auth/signin",
+    "GET /api/auth/verify",
+    "POST /api/notes",
+    "GET /api/notes",
+    "PATCH /api/notes",
+    "DELETE /api/notes",
+    "POST /api/notes/publish",
+    "POST /api/notes/comments",
+    "GET /api/notes/comments",
+    "POST /api/notes/upvotes",
+    "GET /api/notes/shared-statuses",
+    "POST /api/notes/shared-statuses",
+    "GET /api/users",
+    "POST /api/upload",
+    "POST /api/email"
+  ]
+}
