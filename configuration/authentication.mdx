@@ -1,0 +1,392 @@
+---
+title: Authentication
+description: Configure NextAuth.js for email/password and Google OAuth authentication in Noteverse
+---
+
+Noteverse uses [NextAuth.js](https://next-auth.js.org/) v4 for authentication, supporting both email/password credentials and Google OAuth providers.
+
+## Overview
+
+The authentication system provides:
+
+- **Credentials-based authentication** with email and password
+- **Google OAuth integration** for social login
+- **Email verification** workflow
+- **JWT-based sessions** for stateless authentication
+- **Custom auth token management** for API access
+
+## Configuration
+
+The authentication configuration is located in `src/app/api/auth/[...nextauth]/authoptions.ts`.
+
+### NextAuth Options
+
+<CodeGroup>
+
+```typescript authoptions.ts
+import { NextAuthOptions } from 'next-auth'
+import CredentialsProvider from 'next-auth/providers/credentials'
+import GoogleProvider from 'next-auth/providers/google'
+
+export const authOptions: NextAuthOptions = {
+  providers: [
+    CredentialsProvider({ /* ... */ }),
+    GoogleProvider({ /* ... */ })
+  ],
+  callbacks: {
+    async jwt({ token, user, profile, account }) { /* ... */ },
+    async session({ session, token }) { /* ... */ }
+  },
+  pages: {
+    signIn: '/signin',
+    signOut: '/auth/signout',
+    error: '/auth/error',
+    verifyRequest: '/auth/verify-request',
+    newUser: '/signup'
+  },
+  session: {
+    strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60 // 30 days
+  }
+}
+```
+
+</CodeGroup>
+
+## Authentication Providers
+
+### Credentials Provider
+
+The credentials provider handles email/password authentication with database verification.
+
+<CodeGroup>
+
+```typescript Credentials Setup
+CredentialsProvider({
+  name: 'Sign In',
+  credentials: {
+    email: { label: 'Email', type: 'email', placeholder: 'bob@gmail.com' },
+    password: { label: 'Password', type: 'password' }
+  },
+  async authorize(credentials) {
+    // Find user in database
+    const user = await prisma.user.findUnique({
+      where: { email: credentials.email }
+    })
+    
+    // Verify password with bcrypt
+    const isValid = await bcrypt.compare(
+      credentials.password,
+      user.password
+    )
+    
+    if (!isValid) {
+      throw new Error('Invalid password')
+    }
+    
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.username,
+      accessToken: user.authToken,
+      isEmailVerified: user.emailVerified,
+      verificationToken: user.verificationToken
+    }
+  }
+})
+```
+
+</CodeGroup>
+
+**Flow:**
+
+1. User submits email and password
+2. System queries database for user by email
+3. Password is verified using bcrypt comparison
+4. Returns user object with auth tokens if valid
+
+### Google OAuth Provider
+
+<CodeGroup>
+
+```typescript Google OAuth
+GoogleProvider({
+  clientId: process.env.GOOGLE_CID || '',
+  clientSecret: process.env.GOOGLE_CS || ''
+})
+```
+
+</CodeGroup>
+
+<Note>
+To enable Google OAuth, you must set `GOOGLE_CID` and `GOOGLE_CS` environment variables. See [Environment Variables](/configuration/environment-variables) for setup instructions.
+</Note>
+
+**Google OAuth Flow:**
+
+1. User clicks "Sign in with Google"
+2. Redirected to Google consent screen
+3. On success, checks if user exists in database
+4. If new user, creates account with verified email
+5. If existing user, retrieves existing auth tokens
+
+## Session Management
+
+Noteverse uses JWT-based sessions for stateless authentication.
+
+### Session Strategy
+
+<ParamField path="strategy" type="string" default="jwt">
+  Uses JSON Web Tokens instead of database sessions for better scalability.
+</ParamField>
+
+<ParamField path="maxAge" type="number" default="2592000">
+  Session duration in seconds. Default is 30 days (30 * 24 * 60 * 60).
+</ParamField>
+
+### JWT Callback
+
+The JWT callback enriches the token with user data:
+
+<CodeGroup>
+
+```typescript JWT Callback
+async jwt({ token, user, profile, account }) {
+  // Google OAuth flow
+  if (account?.provider === 'google') {
+    const existingUser = await prisma.user.findUnique({
+      where: { email: profile?.email! }
+    })
+    
+    if (existingUser) {
+      // Return existing user data
+      token.id = existingUser.id
+      token.accessToken = existingUser.authToken
+      token.isEmailVerified = existingUser.emailVerified
+    } else {
+      // Create new user for Google sign-in
+      const newUser = await prisma.user.create({
+        data: {
+          email: profile?.email!,
+          username: profile?.name!,
+          password: '', // No password for OAuth users
+          authToken: crypto.randomBytes(64).toString('hex'),
+          emailVerified: true
+        }
+      })
+      
+      token.id = newUser.id
+      token.accessToken = newUser.authToken
+    }
+  }
+  
+  // Credentials flow
+  else if (user) {
+    token.id = user.id
+    token.accessToken = user.accessToken
+    token.isEmailVerified = user.isEmailVerified
+    token.verificationToken = user.verificationToken
+  }
+  
+  return token
+}
+```
+
+</CodeGroup>
+
+### Session Callback
+
+The session callback exposes token data to the client:
+
+<CodeGroup>
+
+```typescript Session Callback
+async session({ session, token }) {
+  if (session.user) {
+    session.user.id = token.id as number
+  }
+  
+  session.accessToken = token.accessToken as string
+  session.refreshToken = token.refreshToken as string
+  session.isEmailVerified = token.isEmailVerified as boolean
+  session.verificationToken = token.verificationToken as string
+  
+  return session
+}
+```
+
+</CodeGroup>
+
+## Email Verification
+
+Noteverse implements email verification for credential-based signups.
+
+### Verification Flow
+
+1. User signs up with email/password
+2. System generates `verificationToken` (stored in database)
+3. Verification email sent with token link
+4. User clicks link to verify email
+5. `emailVerified` field updated to `true`
+
+<Warning>
+Users authenticated via Google OAuth are automatically marked as verified (`emailVerified: true`).
+</Warning>
+
+### Token Generation
+
+Auth tokens are generated using the crypto module:
+
+<CodeGroup>
+
+```typescript Token Generation
+import crypto from 'crypto'
+
+const authToken = crypto.randomBytes(64).toString('hex')
+```
+
+</CodeGroup>
+
+## Custom Pages
+
+NextAuth.js uses custom pages for authentication flows:
+
+<ParamField path="signIn" type="string" default="/signin">
+  Custom sign-in page route
+</ParamField>
+
+<ParamField path="signOut" type="string" default="/auth/signout">
+  Custom sign-out confirmation page
+</ParamField>
+
+<ParamField path="error" type="string" default="/auth/error">
+  Error page for authentication errors
+</ParamField>
+
+<ParamField path="verifyRequest" type="string" default="/auth/verify-request">
+  Email verification request page
+</ParamField>
+
+<ParamField path="newUser" type="string" default="/signup">
+  New user registration page
+</ParamField>
+
+## Using Authentication
+
+### Server Components
+
+<CodeGroup>
+
+```typescript Server Component
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/app/api/auth/[...nextauth]/authoptions'
+
+export default async function ProtectedPage() {
+  const session = await getServerSession(authOptions)
+  
+  if (!session) {
+    redirect('/signin')
+  }
+  
+  return <div>Welcome {session.user.name}</div>
+}
+```
+
+</CodeGroup>
+
+### Client Components
+
+<CodeGroup>
+
+```typescript Client Component
+'use client'
+
+import { useSession } from 'next-auth/react'
+
+export default function Profile() {
+  const { data: session, status } = useSession()
+  
+  if (status === 'loading') {
+    return <div>Loading...</div>
+  }
+  
+  if (!session) {
+    return <div>Please sign in</div>
+  }
+  
+  return (
+    <div>
+      <p>Signed in as {session.user.email}</p>
+      <p>Access Token: {session.accessToken}</p>
+      <p>Email Verified: {session.isEmailVerified ? 'Yes' : 'No'}</p>
+    </div>
+  )
+}
+```
+
+</CodeGroup>
+
+### API Routes
+
+<CodeGroup>
+
+```typescript API Route
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/app/api/auth/[...nextauth]/authoptions'
+
+export async function GET(request: Request) {
+  const session = await getServerSession(authOptions)
+  
+  if (!session) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+  
+  // Use session.accessToken for API authentication
+  return Response.json({ user: session.user })
+}
+```
+
+</CodeGroup>
+
+## Security Best Practices
+
+<Warning>
+**Important Security Considerations:**
+
+- Always use HTTPS in production
+- Keep `NEXTAUTH_SECRET` secure and rotated regularly
+- Validate user input on both client and server
+- Hash passwords with bcrypt (minimum 10 rounds)
+- Implement rate limiting on authentication endpoints
+- Use secure session cookies (httpOnly, secure, sameSite)
+</Warning>
+
+## Troubleshooting
+
+### Common Issues
+
+**Session not persisting:**
+- Check that `NEXTAUTH_URL` matches your domain
+- Ensure cookies are not blocked in browser
+- Verify `NEXTAUTH_SECRET` is set correctly
+
+**Google OAuth fails:**
+- Verify `GOOGLE_CID` and `GOOGLE_CS` are correct
+- Check authorized redirect URIs in Google Cloud Console
+- Ensure callback URL is `{NEXTAUTH_URL}/api/auth/callback/google`
+
+**Email verification not working:**
+- Check email service configuration
+- Verify verification token is being generated
+- Ensure database `emailVerified` field updates correctly
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Configuration" icon="database" href="/configuration/database">
+    Set up user models and database schema
+  </Card>
+  <Card title="Environment Variables" icon="gear" href="/configuration/environment-variables">
+    Configure authentication environment variables
+  </Card>
+</CardGroup>

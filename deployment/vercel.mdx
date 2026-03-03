@@ -1,0 +1,410 @@
+---
+title: Deploying to Vercel
+description: Deploy Noteverse to Vercel with environment configuration and WebSocket considerations
+---
+
+Vercel provides a streamlined deployment experience for Next.js applications. This guide covers deploying Noteverse to Vercel with proper configuration for real-time features.
+
+## Prerequisites
+
+Before deploying to Vercel:
+
+- GitHub, GitLab, or Bitbucket repository
+- Vercel account (free tier available)
+- PostgreSQL database (Vercel Postgres, Supabase, or external)
+
+## Quick Start
+
+<Steps>
+  <Step title="Connect Repository">
+    Import your Noteverse repository to Vercel:
+    
+    1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
+    2. Click "Add New" → "Project"
+    3. Select your Git provider and repository
+    4. Click "Import"
+  </Step>
+  
+  <Step title="Configure Build Settings">
+    Vercel auto-detects Next.js. Verify these settings:
+    
+    - **Framework Preset**: Next.js
+    - **Build Command**: `vercel-build` (uses custom script)
+    - **Output Directory**: `.next` (default)
+    - **Install Command**: `npm install`
+  </Step>
+  
+  <Step title="Set Environment Variables">
+    Add all required environment variables (see below)
+  </Step>
+  
+  <Step title="Deploy">
+    Click "Deploy" and wait for the build to complete
+  </Step>
+</Steps>
+
+## Environment Variables
+
+Configure these environment variables in your Vercel project settings:
+
+### Database Configuration
+
+```bash
+DATABASE_URL="postgresql://user:password@host:5432/noteverse?sslmode=require"
+```
+
+<Note>
+If using Vercel Postgres, the `DATABASE_URL` is automatically configured. For external databases, ensure SSL mode is enabled.
+</Note>
+
+### Authentication
+
+```bash
+NEXTAUTH_URL="https://your-project.vercel.app"
+NEXTAUTH_SECRET="your-generated-secret"
+```
+
+<Warning>
+Generate a secure `NEXTAUTH_SECRET` using:
+```bash
+openssl rand -base64 32
+```
+Never use the same secret across environments.
+</Warning>
+
+### Application URLs
+
+```bash
+NEXT_PUBLIC_API_URL="https://your-project.vercel.app"
+NEXT_PUBLIC_SOCKET_URL="https://your-project.vercel.app"
+NEXT_PUBLIC_UPLOAD_URL="https://your-blob-storage.vercel-storage.com"
+```
+
+### Complete Environment Setup
+
+<CodeGroup>
+```bash Production
+# Database
+DATABASE_URL="postgresql://user:password@host:5432/noteverse?sslmode=require"
+
+# Authentication
+NEXTAUTH_URL="https://noteverse.vercel.app"
+NEXTAUTH_SECRET="your-production-secret"
+
+# Application
+NEXT_PUBLIC_API_URL="https://noteverse.vercel.app"
+NEXT_PUBLIC_SOCKET_URL="https://noteverse.vercel.app"
+NEXT_PUBLIC_UPLOAD_URL="https://blob-storage.vercel-storage.com"
+NODE_ENV="production"
+```
+
+```bash Preview
+# Database (use separate preview database)
+DATABASE_URL="postgresql://user:password@host:5432/noteverse-preview?sslmode=require"
+
+# Authentication
+NEXTAUTH_URL="https://noteverse-preview.vercel.app"
+NEXTAUTH_SECRET="your-preview-secret"
+
+# Application
+NEXT_PUBLIC_API_URL="https://noteverse-preview.vercel.app"
+NEXT_PUBLIC_SOCKET_URL="https://noteverse-preview.vercel.app"
+NEXT_PUBLIC_UPLOAD_URL="https://blob-storage-preview.vercel-storage.com"
+```
+</CodeGroup>
+
+## Build Script Configuration
+
+Noteverse uses a custom `vercel-build` script defined in `package.json`:
+
+```json
+{
+  "scripts": {
+    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "postinstall": "prisma generate"
+  }
+}
+```
+
+This script:
+
+1. **Generates Prisma Client**: Creates type-safe database client
+2. **Deploys Migrations**: Applies database schema changes
+3. **Builds Next.js**: Creates production-optimized bundle
+
+<Note>
+The `vercel-build` script runs automatically during Vercel deployment. You don't need to configure it manually.
+</Note>
+
+## Vercel Blob Storage
+
+Noteverse includes `@vercel/blob` for file uploads and storage.
+
+### Enable Vercel Blob
+
+<Steps>
+  <Step title="Add Blob Store">
+    In your Vercel project:
+    1. Go to "Storage" tab
+    2. Click "Create Database"
+    3. Select "Blob"
+    4. Follow the setup wizard
+  </Step>
+  
+  <Step title="Environment Variables Auto-Configuration">
+    Vercel automatically adds these variables:
+    ```bash
+    BLOB_READ_WRITE_TOKEN="vercel_blob_..."
+    ```
+  </Step>
+  
+  <Step title="Configure Upload URL">
+    Set your public upload URL:
+    ```bash
+    NEXT_PUBLIC_UPLOAD_URL="https://your-blob.public.blob.vercel-storage.com"
+    ```
+  </Step>
+</Steps>
+
+### Usage Example
+
+```typescript
+import { put } from '@vercel/blob';
+
+export async function uploadFile(file: File) {
+  const blob = await put(file.name, file, {
+    access: 'public',
+    token: process.env.BLOB_READ_WRITE_TOKEN,
+  });
+  
+  return blob.url;
+}
+```
+
+## WebSocket Considerations
+
+<Warning>
+Vercel's serverless architecture has limitations for WebSocket connections used by Socket.IO.
+</Warning>
+
+### Important Limitations
+
+Noteverse uses a custom server (`server.mjs`) with Socket.IO for real-time collaboration:
+
+```javascript
+import { createServer } from 'node:http'
+import { Server } from 'socket.io'
+
+const httpServer = createServer(handler)
+const io = new Server(httpServer)
+```
+
+**Vercel Serverless Functions**:
+- Maximum execution time: 10-60 seconds (plan dependent)
+- Not suitable for persistent WebSocket connections
+- Socket.IO requires long-lived connections
+
+### Solutions for Real-time Features
+
+<CodeGroup>
+```bash Option 1: Separate WebSocket Server
+# Deploy the Socket.IO server separately
+# Host on: Railway, Render, or Heroku
+
+# Update environment variable
+NEXT_PUBLIC_SOCKET_URL="https://noteverse-ws.railway.app"
+```
+
+```bash Option 2: Vercel with Edge Network
+# Use Vercel's experimental WebSocket support
+# Configure in vercel.json (if available)
+# Note: Limited availability and beta features
+```
+
+```bash Option 3: Alternative Platform
+# Deploy entire app to WebSocket-friendly platform
+# Railway, Render, or DigitalOcean
+# See Docker deployment guide
+```
+</CodeGroup>
+
+### Recommended Approach
+
+For production deployments with real-time features:
+
+1. **Deploy Next.js app to Vercel** (static + API routes)
+2. **Deploy Socket.IO server separately** to Railway/Render
+3. **Configure CORS** for cross-origin WebSocket connections
+4. **Set `NEXT_PUBLIC_SOCKET_URL`** to separate WebSocket server
+
+## Database Setup
+
+### Using Vercel Postgres
+
+<Steps>
+  <Step title="Create Database">
+    1. Go to "Storage" tab in your Vercel project
+    2. Click "Create Database" → "Postgres"
+    3. Choose region and plan
+  </Step>
+  
+  <Step title="Connect to Project">
+    Vercel automatically configures `DATABASE_URL` and other connection variables
+  </Step>
+  
+  <Step title="Run Migrations">
+    Migrations run automatically via `vercel-build` script on each deployment
+  </Step>
+</Steps>
+
+### Using External Database
+
+For external PostgreSQL (Supabase, Railway, etc.):
+
+```bash
+DATABASE_URL="postgresql://user:password@host:5432/database?sslmode=require&pgbouncer=true"
+```
+
+<Note>
+Add `pgbouncer=true` if your database uses connection pooling (common with Supabase).
+</Note>
+
+## Deployment Workflow
+
+### Automatic Deployments
+
+Vercel automatically deploys on:
+
+- **Production**: Pushes to `main` or `master` branch
+- **Preview**: Pull requests and other branches
+
+### Manual Deployment
+
+Deploy manually using Vercel CLI:
+
+<Steps>
+  <Step title="Install Vercel CLI">
+    ```bash
+    npm i -g vercel
+    ```
+  </Step>
+  
+  <Step title="Login to Vercel">
+    ```bash
+    vercel login
+    ```
+  </Step>
+  
+  <Step title="Deploy">
+    ```bash
+    # Deploy to preview
+    vercel
+    
+    # Deploy to production
+    vercel --prod
+    ```
+  </Step>
+</Steps>
+
+## Monitoring and Logs
+
+### View Deployment Logs
+
+1. Go to your project dashboard
+2. Click on the deployment
+3. View "Build Logs" and "Function Logs"
+
+### Common Issues
+
+<CodeGroup>
+```log Prisma Migration Failed
+Error: Migration failed to apply
+
+Solution:
+1. Check DATABASE_URL is correct
+2. Ensure database is accessible
+3. Verify SSL mode configuration
+```
+
+```log Build Timeout
+Error: Build exceeded maximum duration
+
+Solution:
+1. Optimize dependencies
+2. Check for slow postinstall scripts
+3. Upgrade Vercel plan if needed
+```
+
+```log WebSocket Connection Failed
+Error: WebSocket connection refused
+
+Solution:
+1. Deploy Socket.IO server separately
+2. Update NEXT_PUBLIC_SOCKET_URL
+3. Configure CORS settings
+```
+</CodeGroup>
+
+## Custom Domain
+
+<Steps>
+  <Step title="Add Domain">
+    1. Go to project "Settings" → "Domains"
+    2. Enter your domain name
+    3. Follow DNS configuration instructions
+  </Step>
+  
+  <Step title="Update Environment Variables">
+    Update URLs to use custom domain:
+    ```bash
+    NEXTAUTH_URL="https://noteverse.com"
+    NEXT_PUBLIC_API_URL="https://noteverse.com"
+    ```
+  </Step>
+  
+  <Step title="SSL Certificate">
+    Vercel automatically provisions SSL certificates via Let's Encrypt
+  </Step>
+</Steps>
+
+## Performance Optimization
+
+### Edge Functions
+
+Consider using Edge Functions for API routes:
+
+```typescript
+// app/api/notes/route.ts
+export const runtime = 'edge'
+
+export async function GET() {
+  // Fast, globally distributed responses
+}
+```
+
+### Image Optimization
+
+Vercel automatically optimizes images via `next/image`:
+
+```tsx
+import Image from 'next/image'
+
+<Image
+  src="/note-image.png"
+  alt="Note"
+  width={800}
+  height={600}
+  priority
+/>
+```
+
+## Next Steps
+
+- Configure custom domain
+- Set up monitoring with Vercel Analytics
+- Enable preview deployments for testing
+- Deploy WebSocket server separately for real-time features
+
+<Card title="Docker Deployment" icon="docker" href="/deployment/docker">
+  For full WebSocket support, consider deploying with Docker
+</Card>

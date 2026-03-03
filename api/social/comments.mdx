@@ -1,0 +1,298 @@
+---
+title: 'Comments'
+description: 'Create and retrieve threaded comments on notes'
+---
+
+## Create Comment
+
+<api-endpoint>
+  POST /api/notes/comments
+</api-endpoint>
+
+Create a new comment on a note. Supports nested/threaded comments through the `parent_comment` parameter.
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token for authentication
+</ParamField>
+
+### Body Parameters
+
+<ParamField body="notes_id" type="string" required>
+  The ID of the note to comment on
+</ParamField>
+
+<ParamField body="comment" type="string" required>
+  The text content of the comment
+</ParamField>
+
+<ParamField body="parent_comment" type="number">
+  Optional ID of parent comment for creating nested replies
+</ParamField>
+
+### Response
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  The created comment object
+  
+  <ResponseField name="data.id" type="number">
+    Unique identifier for the comment
+  </ResponseField>
+  
+  <ResponseField name="data.text" type="string">
+    The comment text
+  </ResponseField>
+  
+  <ResponseField name="data.noteId" type="number">
+    ID of the note this comment belongs to
+  </ResponseField>
+  
+  <ResponseField name="data.userId" type="number">
+    ID of the user who created the comment
+  </ResponseField>
+  
+  <ResponseField name="data.parentCommentId" type="number | null">
+    ID of parent comment if this is a reply, null otherwise
+  </ResponseField>
+  
+  <ResponseField name="data.createdAt" type="string">
+    Timestamp when comment was created
+  </ResponseField>
+  
+  <ResponseField name="data.updatedAt" type="string">
+    Timestamp when comment was last updated
+  </ResponseField>
+</ResponseField>
+
+<CodeGroup>
+```bash Top-level Comment
+curl -X POST https://api.noteverse.com/api/notes/comments \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notes_id": "123",
+    "comment": "Great note! Very helpful."
+  }'
+```
+
+```bash Nested Reply
+curl -X POST https://api.noteverse.com/api/notes/comments \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notes_id": "123",
+    "comment": "I agree with your point!",
+    "parent_comment": 456
+  }'
+```
+</CodeGroup>
+
+### Response Example
+
+```json
+{
+  "message": "Comment created",
+  "data": {
+    "id": 789,
+    "text": "Great note! Very helpful.",
+    "noteId": 123,
+    "userId": 42,
+    "parentCommentId": null,
+    "createdAt": "2026-03-03T10:30:00.000Z",
+    "updatedAt": "2026-03-03T10:30:00.000Z"
+  }
+}
+```
+
+### Error Responses
+
+<ResponseField name="error" type="string">
+  Error message
+</ResponseField>
+
+<ResponseField name="statusCode" type="number">
+  HTTP status code
+</ResponseField>
+
+**400 Bad Request** - Missing note ID
+```json
+{
+  "error": "Note id is required",
+  "statusCode": 400
+}
+```
+
+**400 Bad Request** - Authentication failure
+```json
+{
+  "error": "Error creating comment",
+  "statusCode": 400
+}
+```
+
+---
+
+## Get Comments
+
+<api-endpoint>
+  GET /api/notes/comments
+</api-endpoint>
+
+Retrieve all comments for a specific note, organized in a threaded/nested structure.
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token for authentication
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="note_id" type="string" required>
+  The ID of the note to fetch comments for
+</ParamField>
+
+### Response
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  Array of top-level comments with nested replies
+  
+  <ResponseField name="data[].id" type="number">
+    Unique identifier for the comment
+  </ResponseField>
+  
+  <ResponseField name="data[].text" type="string">
+    The comment text
+  </ResponseField>
+  
+  <ResponseField name="data[].noteId" type="number">
+    ID of the note this comment belongs to
+  </ResponseField>
+  
+  <ResponseField name="data[].userId" type="number">
+    ID of the user who created the comment
+  </ResponseField>
+  
+  <ResponseField name="data[].parentCommentId" type="number | null">
+    Always null for top-level comments
+  </ResponseField>
+  
+  <ResponseField name="data[].user" type="object">
+    User information
+    
+    <ResponseField name="data[].user.id" type="number">
+      User ID
+    </ResponseField>
+    
+    <ResponseField name="data[].user.email" type="string">
+      User email
+    </ResponseField>
+    
+    <ResponseField name="data[].user.username" type="string">
+      Username
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="data[].replies" type="array">
+    Nested array of reply comments (same structure as parent)
+  </ResponseField>
+  
+  <ResponseField name="data[].createdAt" type="string">
+    Timestamp when comment was created
+  </ResponseField>
+  
+  <ResponseField name="data[].updatedAt" type="string">
+    Timestamp when comment was last updated
+  </ResponseField>
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.noteverse.com/api/notes/comments?note_id=123" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch(
+  'https://api.noteverse.com/api/notes/comments?note_id=123',
+  {
+    headers: {
+      'Authorization': 'Bearer YOUR_TOKEN'
+    }
+  }
+);
+const data = await response.json();
+```
+</CodeGroup>
+
+### Response Example
+
+```json
+{
+  "message": "Comments found",
+  "data": [
+    {
+      "id": 789,
+      "text": "Great note! Very helpful.",
+      "noteId": 123,
+      "userId": 42,
+      "parentCommentId": null,
+      "user": {
+        "id": 42,
+        "email": "user@example.com",
+        "username": "johndoe"
+      },
+      "replies": [
+        {
+          "id": 790,
+          "text": "I agree!",
+          "noteId": 123,
+          "userId": 43,
+          "parentCommentId": 789,
+          "user": {
+            "id": 43,
+            "email": "jane@example.com",
+            "username": "janedoe"
+          },
+          "replies": [],
+          "createdAt": "2026-03-03T10:35:00.000Z",
+          "updatedAt": "2026-03-03T10:35:00.000Z"
+        }
+      ],
+      "createdAt": "2026-03-03T10:30:00.000Z",
+      "updatedAt": "2026-03-03T10:30:00.000Z"
+    }
+  ]
+}
+```
+
+<Note>
+  Comments are returned in a nested structure where `replies` contain all child comments. This allows for infinite nesting depth in threaded discussions.
+</Note>
+
+### Error Responses
+
+**400 Bad Request** - Missing note ID
+```json
+{
+  "error": "Note id is required",
+  "statusCode": 400
+}
+```
+
+**400 Bad Request** - Authentication failure
+```json
+{
+  "error": "Error fetching comments",
+  "statusCode": 400
+}
+```

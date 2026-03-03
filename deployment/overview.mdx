@@ -1,0 +1,217 @@
+---
+title: Deployment Overview
+description: Overview of deployment options and requirements for Noteverse
+---
+
+Noteverse is a real-time collaborative note-sharing platform that can be deployed to various hosting environments. This guide covers the requirements and options for deploying your Noteverse instance.
+
+## Production Requirements
+
+Before deploying Noteverse, ensure your environment meets these requirements:
+
+### Runtime Environment
+
+- **Node.js**: Version 18.x or higher
+- **Package Manager**: npm, yarn, or pnpm
+- **Database**: PostgreSQL (with Prisma ORM)
+- **WebSocket Support**: Required for real-time collaboration
+
+### Database
+
+Noteverse uses PostgreSQL with Prisma as the ORM. You'll need:
+
+- PostgreSQL 12+ instance
+- Connection string with appropriate permissions
+- Support for Prisma migrations
+
+### Server Requirements
+
+<Note>
+Noteverse uses a custom Node.js server (`server.mjs`) to support Socket.IO for real-time features. Standard Next.js serverless deployments won't support WebSocket connections.
+</Note>
+
+The application requires:
+
+- WebSocket support for Socket.IO
+- HTTP server for Next.js application
+- Port 3000 (default, configurable)
+
+## Environment Variables
+
+Configure these environment variables for production:
+
+```bash
+# Database
+DATABASE_URL="postgresql://user:password@host:5432/database"
+
+# Authentication
+NEXTAUTH_URL="https://your-domain.com"
+NEXTAUTH_SECRET="your-secret-key"
+
+# Application URLs
+NEXT_PUBLIC_API_URL="https://your-domain.com"
+NEXT_PUBLIC_SOCKET_URL="https://your-domain.com"
+NEXT_PUBLIC_UPLOAD_URL="https://your-blob-storage.com"
+
+# Production Environment
+NODE_ENV="production"
+```
+
+<Warning>
+Never commit `.env` files to version control. Use your hosting provider's environment variable management system.
+</Warning>
+
+## Build Process
+
+The standard build process includes:
+
+<Steps>
+  <Step title="Install Dependencies">
+    Install all required packages:
+    ```bash
+    npm install
+    ```
+    
+    This automatically runs `prisma generate` via the `postinstall` script.
+  </Step>
+  
+  <Step title="Generate Prisma Client">
+    Ensure Prisma client is generated:
+    ```bash
+    npx prisma generate
+    ```
+  </Step>
+  
+  <Step title="Run Database Migrations">
+    Apply database schema migrations:
+    ```bash
+    npx prisma migrate deploy
+    ```
+  </Step>
+  
+  <Step title="Build Next.js Application">
+    Create the production build:
+    ```bash
+    npm run build
+    ```
+  </Step>
+  
+  <Step title="Start Production Server">
+    Start the custom Node.js server with Socket.IO:
+    ```bash
+    npm start
+    ```
+    
+    This runs `NODE_ENV=production node server.mjs`
+  </Step>
+</Steps>
+
+## Deployment Options
+
+Noteverse can be deployed to various platforms:
+
+### Vercel
+
+<Note>
+Recommended for easy deployment with automatic CI/CD integration.
+</Note>
+
+- Automatic deployments from Git
+- Built-in Vercel Blob storage support
+- Environment variable management
+- **WebSocket considerations apply** (see Vercel deployment guide)
+
+[Learn more about Vercel deployment →](/deployment/vercel)
+
+### Docker
+
+<Note>
+Ideal for self-hosted environments and full control over infrastructure.
+</Note>
+
+- Multi-stage build for optimized images
+- Docker Compose for PostgreSQL integration
+- Portable across cloud providers
+- Full WebSocket support
+
+[Learn more about Docker deployment →](/deployment/docker)
+
+### Other Platforms
+
+Noteverse can be deployed to any platform that supports:
+
+- Node.js 18+ runtime
+- WebSocket connections
+- PostgreSQL databases
+
+Suitable platforms include:
+
+- **Railway**: Node.js and PostgreSQL support with WebSockets
+- **Render**: Native WebSocket support
+- **DigitalOcean App Platform**: Docker-based deployments
+- **AWS EC2/ECS**: Full control with Docker or direct deployment
+- **Heroku**: Supports WebSockets with appropriate dynos
+
+## Storage Configuration
+
+### Vercel Blob (Recommended for Vercel)
+
+Noteverse uses `@vercel/blob` for file storage:
+
+```typescript
+import { put } from '@vercel/blob';
+
+const blob = await put('filename.png', file, {
+  access: 'public',
+});
+```
+
+### Alternative Storage
+
+For non-Vercel deployments, configure:
+
+- AWS S3
+- Cloudflare R2
+- DigitalOcean Spaces
+- Self-hosted storage solutions
+
+## Real-time Features
+
+<Warning>
+The real-time collaboration features require WebSocket support. Ensure your deployment platform supports persistent WebSocket connections.
+</Warning>
+
+Noteverse's `server.mjs` handles:
+
+- User registration and presence
+- Real-time content synchronization
+- Live user tracking
+- Collaborative editing events
+
+## Health Checks
+
+Implement health check endpoints for production monitoring:
+
+```bash
+curl http://localhost:3000/api/health
+```
+
+Monitor:
+
+- Database connectivity
+- WebSocket connections
+- Server uptime
+- Memory usage
+
+## Next Steps
+
+Choose your deployment platform:
+
+<CardGroup cols={2}>
+  <Card title="Deploy to Vercel" icon="rocket" href="/deployment/vercel">
+    Quick deployment with automatic CI/CD
+  </Card>
+  <Card title="Deploy with Docker" icon="docker" href="/deployment/docker">
+    Self-hosted deployment with containers
+  </Card>
+</CardGroup>

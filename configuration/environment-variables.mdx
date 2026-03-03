@@ -1,0 +1,174 @@
+---
+title: Environment Variables
+description: Configure Noteverse with environment variables for API endpoints, authentication, and database connections
+---
+
+Noteverse uses environment variables to configure various services including API endpoints, authentication, database connections, and file uploads.
+
+## Setup
+
+Create a `.env.local` file in the root directory of your project with the required environment variables.
+
+<CodeGroup>
+
+```bash .env.local
+NEXT_PUBLIC_API_URL=http://localhost:3000/api
+NEXT_PUBLIC_SOCKET_URL=http://localhost:3000
+NEXT_PUBLIC_UPLOAD_URL=https://your-upload-endpoint.com
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-key-here
+DATABASE_URL=postgresql://user:password@localhost:5432/noteverse
+```
+
+</CodeGroup>
+
+<Warning>
+Never commit your `.env.local` file to version control. Add it to your `.gitignore` file to prevent accidental exposure of sensitive credentials.
+</Warning>
+
+## Required Variables
+
+### Public API Configuration
+
+These variables are prefixed with `NEXT_PUBLIC_` and are exposed to the browser.
+
+<ParamField path="NEXT_PUBLIC_API_URL" type="string" required>
+  The base URL for your API endpoints. This is used for making API requests from the client-side.
+  
+  **Development**: `http://localhost:3000/api`
+  
+  **Production**: `https://your-domain.com/api`
+</ParamField>
+
+<ParamField path="NEXT_PUBLIC_SOCKET_URL" type="string" required>
+  The URL for the Socket.IO server that handles real-time collaboration features.
+  
+  **Development**: `http://localhost:3000`
+  
+  **Production**: `https://your-domain.com`
+</ParamField>
+
+<ParamField path="NEXT_PUBLIC_UPLOAD_URL" type="string" required>
+  The endpoint URL for file uploads. Noteverse uses Vercel Blob for edge-compatible blob storage.
+  
+  **Example**: `https://your-storage-endpoint.vercel-storage.com`
+</ParamField>
+
+### Authentication (NextAuth.js)
+
+<ParamField path="NEXTAUTH_URL" type="string" required>
+  The canonical URL of your site. This is used by NextAuth.js for redirects and callbacks.
+  
+  **Development**: `http://localhost:3000`
+  
+  **Production**: `https://your-domain.com`
+</ParamField>
+
+<ParamField path="NEXTAUTH_SECRET" type="string" required>
+  A random string used to encrypt tokens, sign cookies, and generate cryptographic keys. Generate a secure secret using:
+  
+  ```bash
+  openssl rand -base64 32
+  ```
+  
+  <Warning>
+  Keep this secret secure and never expose it publicly. Changing this value will invalidate all existing sessions.
+  </Warning>
+</ParamField>
+
+### Database
+
+<ParamField path="DATABASE_URL" type="string" required>
+  PostgreSQL connection string for Prisma ORM. This should include the username, password, host, port, and database name.
+  
+  **Format**: `postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=public`
+  
+  **Example**: `postgresql://noteverse_user:password123@localhost:5432/noteverse_db`
+</ParamField>
+
+## Optional Variables
+
+### Google OAuth (Optional)
+
+If you want to enable Google authentication, add these variables:
+
+<ParamField path="GOOGLE_CID" type="string">
+  Google OAuth Client ID. Obtain this from the [Google Cloud Console](https://console.cloud.google.com/).
+</ParamField>
+
+<ParamField path="GOOGLE_CS" type="string">
+  Google OAuth Client Secret. Keep this confidential.
+</ParamField>
+
+## Environment-Specific Configuration
+
+### Development
+
+<CodeGroup>
+
+```bash .env.local (Development)
+NEXT_PUBLIC_API_URL=http://localhost:3000/api
+NEXT_PUBLIC_SOCKET_URL=http://localhost:3000
+NEXT_PUBLIC_UPLOAD_URL=http://localhost:3000/api/upload
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=development-secret-change-in-production
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/noteverse_dev
+```
+
+</CodeGroup>
+
+### Production
+
+<CodeGroup>
+
+```bash .env.local (Production)
+NEXT_PUBLIC_API_URL=https://noteverse.example.com/api
+NEXT_PUBLIC_SOCKET_URL=https://noteverse.example.com
+NEXT_PUBLIC_UPLOAD_URL=https://blob.vercel-storage.com/noteverse
+NEXTAUTH_URL=https://noteverse.example.com
+NEXTAUTH_SECRET=<generated-secret-key>
+DATABASE_URL=postgresql://user:password@db.example.com:5432/noteverse_prod
+```
+
+</CodeGroup>
+
+<Note>
+For production deployments on Vercel, set these environment variables in your project settings under **Settings > Environment Variables**.
+</Note>
+
+## Verification
+
+After setting up your environment variables, verify they are loaded correctly:
+
+<CodeGroup>
+
+```bash Terminal
+# Check if variables are loaded (development)
+npm run dev
+```
+
+</CodeGroup>
+
+The application should start without errors. If you see warnings about missing environment variables, double-check your `.env.local` file.
+
+## Troubleshooting
+
+<Warning>
+If environment variables are not being picked up:
+
+1. Ensure the `.env.local` file is in the root directory
+2. Restart your development server after changing environment variables
+3. Verify there are no typos in variable names
+4. Check that `NEXT_PUBLIC_` prefix is used for client-side variables
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication Setup" icon="lock" href="/configuration/authentication">
+    Configure NextAuth.js for user authentication
+  </Card>
+  <Card title="Database Setup" icon="database" href="/configuration/database">
+    Set up PostgreSQL and Prisma ORM
+  </Card>
+</CardGroup>

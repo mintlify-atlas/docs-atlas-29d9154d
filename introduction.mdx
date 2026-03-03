@@ -1,0 +1,96 @@
+---
+title: Welcome to Noteverse
+description: A modern, real-time collaborative note-sharing platform built with Next.js
+---
+
+<img
+  className="block dark:hidden"
+  src="/images/hero-light.png"
+  alt="Noteverse Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/hero-dark.png"
+  alt="Noteverse Hero Dark"
+/>
+
+## What is Noteverse?
+
+Noteverse is a modern, real-time collaborative note-sharing platform that enables you to create, share, and edit notes collaboratively while engaging through social features. Built with Next.js and powered by Novel.sh's rich text editor, Noteverse transforms note-taking into a collaborative and social experience.
+
+## Get started
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Create your account and start collaborating in minutes
+  </Card>
+  <Card
+    title="Real-time collaboration"
+    icon="users"
+    href="/features/real-time-collaboration"
+  >
+    Learn how to edit notes simultaneously with your team
+  </Card>
+  <Card
+    title="Authentication"
+    icon="lock"
+    href="/api/auth/signup"
+  >
+    Understand how signup and authentication works
+  </Card>
+  <Card
+    title="Creating notes"
+    icon="pen-to-square"
+    href="/guide/creating-notes"
+  >
+    Master the art of creating and organizing your notes
+  </Card>
+</CardGroup>
+
+## Key features
+
+<AccordionGroup>
+  <Accordion icon="users" title="Real-time collaboration">
+    Edit notes simultaneously with other users using Socket.IO for instant synchronization. See changes as they happen and collaborate seamlessly with your team.
+  </Accordion>
+
+  <Accordion icon="pen-fancy" title="Rich text editor">
+    Powered by TipTap and Novel.sh, enjoy a Notion-style WYSIWYG editing experience with support for formatting, embeds, and more.
+  </Accordion>
+
+  <Accordion icon="heart" title="Social engagement">
+    Like, upvote, and reward valuable notes. Build a community around knowledge sharing with integrated social features.
+  </Accordion>
+
+  <Accordion icon="comments" title="Comments and discussions">
+    Engage in meaningful discussions with nested comments and replies. Foster collaboration through threaded conversations.
+  </Accordion>
+
+  <Accordion icon="share-nodes" title="Flexible sharing">
+    Control note visibility with Public, Private, and Shared permissions. Share notes with specific users and manage edit/view access.
+  </Accordion>
+
+  <Accordion icon="moon" title="Dark mode support">
+    Built-in theme switching with next-themes. Seamlessly transition between light and dark modes.
+  </Accordion>
+</AccordionGroup>
+
+## Built with modern technology
+
+Noteverse leverages cutting-edge technologies to deliver a fast, reliable, and delightful user experience:
+
+- **Next.js 14** - React framework for production with server-side rendering
+- **TypeScript** - Type-safe development for fewer bugs
+- **Prisma** - Type-safe database ORM with PostgreSQL
+- **Socket.IO** - Real-time bidirectional communication
+- **NextAuth.js** - Secure authentication with support for OAuth providers
+- **Tailwind CSS** - Utility-first styling for rapid UI development
+- **Novel.sh** - Notion-style WYSIWYG editor built on TipTap
+
+<Note>
+  Noteverse is optimized to work with Bun as the package manager for the best development experience.
+</Note>

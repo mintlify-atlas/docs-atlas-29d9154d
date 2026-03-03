@@ -1,0 +1,239 @@
+---
+title: Comments and upvotes
+description: Engage with notes through threaded comments and community upvoting
+---
+
+Noteverse includes social engagement features that enable discussions and community feedback through comments and upvotes. Foster collaboration and recognize valuable content.
+
+## Comment system
+
+The comment system supports nested replies, creating threaded discussions on any note:
+
+```prisma schema.prisma
+model Comment {
+  id             Int      @id @default(autoincrement())
+  text           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  noteId         Int
+  userId         Int
+  parentCommentId Int?
+
+  note           Note     @relation("CommentsOnNote", fields: [noteId], references: [id])
+  user           User     @relation(fields: [userId], references: [id])
+  parentComment  Comment? @relation("ParentComment", fields: [parentCommentId], references: [id])
+  replies        Comment[] @relation("ParentComment")
+
+  User           User[] @relation("UserComments")
+}
+```
+
+## Comment structure
+
+Each comment includes:
+
+- **text**: The comment content
+- **createdAt**: Timestamp of when the comment was created
+- **updatedAt**: Timestamp of the last edit
+- **noteId**: Reference to the note being commented on
+- **userId**: The author of the comment
+- **parentCommentId**: Reference to the parent comment (null for top-level comments)
+
+## Nested comments
+
+The self-referential relationship enables unlimited nesting depth:
+
+```prisma schema.prisma
+parentComment  Comment? @relation("ParentComment", fields: [parentCommentId], references: [id])
+replies        Comment[] @relation("ParentComment")
+```
+
+This structure allows for:
+- **Top-level comments**: Direct responses to the note (`parentCommentId` is null)
+- **Replies**: Responses to other comments (with a `parentCommentId` set)
+- **Reply threads**: Multiple levels of nested discussion
+
+### Example comment thread
+
+```
+Note: "Introduction to Real-time Collaboration"
+├─ Comment #1 by Alice: "Great explanation of Socket.IO!"
+│  ├─ Reply #2 by Bob: "Agreed! The cursor tracking is impressive."
+│  │  └─ Reply #5 by Alice: "Thanks Bob! I also like the position updates."
+│  └─ Reply #3 by Carol: "How does it handle connection drops?"
+└─ Comment #4 by Dave: "Would love to see more examples."
+```
+
+## Note-comment relationship
+
+Notes maintain a collection of all their comments:
+
+```prisma schema.prisma
+model Note {
+  id          Int       @id @default(autoincrement())
+  title       String
+  // ... other fields
+  comments    Comment[]  @relation("CommentsOnNote")
+  // ...
+}
+```
+
+This enables efficient queries for all comments on a note, including nested replies.
+
+## User-comment relationship
+
+Each comment is authored by a user:
+
+```prisma schema.prisma
+model User {
+  id               Int            @id @default(autoincrement())
+  email            String         @unique
+  username         String         
+  // ... other fields
+  comments        Comment[]      @relation("UserComments")
+  // ...
+}
+```
+
+This relationship allows you to:
+- Display the comment author's name and profile
+- Query all comments by a specific user
+- Control edit/delete permissions based on authorship
+
+## Upvote system
+
+Notes can be upvoted by users to highlight valuable content:
+
+```prisma schema.prisma
+model Note {
+  id          Int       @id @default(autoincrement())
+  title       String
+  // ... other fields
+  likes       User[]     @relation("LikesOnNotes")
+  // ...
+}
+
+model User {
+  id               Int            @id @default(autoincrement())
+  // ... other fields
+  likedNotes      Note[]         @relation("LikesOnNotes")
+  // ...
+}
+```
+
+The many-to-many relationship between `Note` and `User` through the `LikesOnNotes` relation tracks which users have upvoted which notes.
+
+### Upvote features
+
+<CardGroup cols={2}>
+  <Card title="Toggle upvotes" icon="thumbs-up">
+    Users can add or remove their upvote from any note
+  </Card>
+  <Card title="Count display" icon="hashtag">
+    See the total number of upvotes a note has received
+  </Card>
+  <Card title="User tracking" icon="user-check">
+    Track which notes a user has upvoted
+  </Card>
+  <Card title="Sorting" icon="arrow-up-wide-short">
+    Sort notes by popularity based on upvote count
+  </Card>
+</CardGroup>
+
+## Engagement metrics
+
+The schema tracks multiple engagement signals:
+
+```prisma schema.prisma
+model Note {
+  id          Int       @id @default(autoincrement())
+  title       String
+  views       Int       @default(0)
+  // ...
+  comments    Comment[]  @relation("CommentsOnNote")
+  likes       User[]     @relation("LikesOnNotes")
+  favorites   User[]     @relation("FavoritesOnNotes")
+}
+```
+
+### Available metrics
+
+- **views**: Number of times the note has been viewed
+- **comments**: Total number of comments (including replies)
+- **likes**: Number of upvotes from users
+- **favorites**: Number of users who have bookmarked the note
+
+<Note>
+All engagement features respect note visibility settings. Private notes only show engagement data to users with access.
+</Note>
+
+## Comment permissions
+
+Users can add comments to notes if they have at least View permission:
+
+- **Private notes**: Only the owner and shared users can comment
+- **Shared notes**: All users with View or Edit permission can comment
+- **Public notes**: All authenticated users can comment
+
+### Comment moderation
+
+- Comment authors can edit or delete their own comments
+- Note owners can delete any comment on their notes
+- Deleting a parent comment removes all nested replies
+
+## Use cases
+
+### Team feedback
+
+Use comments to provide feedback on shared documents:
+
+```
+Marketing Plan Q1 2026
+├─ Comment by Manager: "Great strategy! Consider adding social media metrics."
+│  └─ Reply by Author: "Good idea, I'll add a section on KPIs."
+└─ Comment by Designer: "I can create visuals for the presentation slides."
+```
+
+### Knowledge sharing
+
+Public notes with upvotes help surface the most valuable content:
+
+```
+Top Tutorials (by upvotes):
+1. "Socket.IO Real-time Guide" - 245 upvotes, 18 comments
+2. "TipTap Editor Setup" - 189 upvotes, 12 comments
+3. "Prisma Schema Design" - 156 upvotes, 23 comments
+```
+
+### Discussion threads
+
+Nested comments enable in-depth technical discussions:
+
+```
+Note: "API Design Best Practices"
+├─ Comment: "What about GraphQL vs REST?"
+│  ├─ Reply: "GraphQL is better for complex queries..."
+│  │  └─ Reply: "But REST is simpler for basic CRUD..."
+│  └─ Reply: "We use both depending on the use case."
+└─ Comment: "Consider adding rate limiting examples."
+```
+
+## Favorites system
+
+In addition to upvotes, users can favorite notes for later reference:
+
+```prisma schema.prisma
+model Note {
+  favorites   User[]     @relation("FavoritesOnNotes")
+}
+
+model User {
+  favoriteNotes   Note[]         @relation("FavoritesOnNotes")
+}
+```
+
+Favorites are private bookmarks, while upvotes are public endorsements.
+
+<Tip>
+Use favorites to create a personal collection of useful notes, and upvotes to help the community discover valuable content.
+</Tip>

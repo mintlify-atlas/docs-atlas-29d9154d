@@ -1,0 +1,365 @@
+---
+title: Note sharing
+description: Share notes with flexible permissions and visibility controls for seamless collaboration
+---
+
+Noteverse provides powerful sharing capabilities that let you collaborate with specific users or publish notes publicly. Control who can access your notes and what they can do with granular permission settings.
+
+## Sharing model
+
+The sharing system is built on the `SharedStatus` model, which tracks all sharing relationships:
+
+```prisma schema.prisma
+model SharedStatus {
+  id           Int    @id @default(autoincrement())
+  sharedById   Int
+  sharedWithId Int
+  permissions  Permission
+  noteId       Int
+  sharedAt     DateTime @default(now())
+
+  sharedBy   User @relation("SharedBy", fields: [sharedById], references: [id])
+  sharedWith User @relation("SharedWith", fields: [sharedWithId], references: [id])
+  note       Note @relation(fields: [noteId], references: [id])
+
+  @@map("shared_status")
+}
+```
+
+Each sharing relationship records:
+- **sharedBy**: The user who shared the note
+- **sharedWith**: The user receiving access
+- **permissions**: The level of access granted (View or Edit)
+- **note**: The note being shared
+- **sharedAt**: Timestamp of when access was granted
+
+## Permission levels
+
+Noteverse supports two permission levels defined in the schema:
+
+```prisma schema.prisma
+enum Permission {
+  View
+  Edit
+}
+```
+
+### View permission
+
+Users with View permission can:
+- Read the note content
+- See real-time updates from editors
+- Add comments and upvotes
+- See other collaborators' cursors
+
+Users **cannot**:
+- Edit the note content
+- Change the note title or settings
+- Share the note with others
+
+### Edit permission
+
+Users with Edit permission can:
+- Everything View users can do
+- Edit the note content in real-time
+- Change formatting and add media
+- See and use slash commands
+
+Users **cannot**:
+- Delete the note
+- Change visibility settings
+- Transfer ownership
+
+<Note>
+Only the note owner can delete notes or change visibility settings, regardless of shared permissions.
+</Note>
+
+## Visibility options
+
+Notes have three visibility states:
+
+```prisma schema.prisma
+enum Visibility {
+  Public
+  Private
+  Shared
+}
+
+model Note {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  data        String?
+  thumbnail   String?
+  views       Int       @default(0)
+  visibility  Visibility @default(Private)
+  // ...
+}
+```
+
+### Private
+
+Default state for new notes. Only you can access the note unless you explicitly share it with specific users.
+
+### Shared
+
+The note has been shared with specific users through the sharing system. Access is controlled by `SharedStatus` entries.
+
+### Public
+
+The note is published to the Featured tab and can be viewed by anyone with the link. Public notes appear in the community feed.
+
+## Sharing interface
+
+The Share component provides a complete UI for managing note access:
+
+### Inviting users
+
+Search for users by email or username to share your note:
+
+```typescript Share.tsx
+<Input
+  className="p-4 w-full"
+  type="text"
+  placeholder="Add people"
+  onChange={(e) => {
+    const val = e.target.value
+    setViewList(true)
+    if (val.length > 0) {
+      const matchedUsers = users?.filter(
+        (user) =>
+          user.email.includes(val) ||
+          user.username.includes(val),
+      )
+      if (matchedUsers) {
+        setUsers(matchedUsers)
+      }
+    }
+  }}
+/>
+```
+
+As you type, matching users appear in a dropdown:
+
+```typescript Share.tsx
+<div className="absolute w-full bg-gray-100 max-w-[90%] rounded-md max-h-[25vh] overflow-scroll">
+  {Users &&
+    Users.map((user) => (
+      <div
+        onClick={() => {
+          setSelectedUser({
+            email: user.email,
+            permission: shareAccess,
+            id: user.id,
+          })
+          setViewList(false)
+        }}
+      >
+        <UserRound className="h-4 w-4 mr-2" />
+        <div>
+          <p>{user.username}</p>
+          <p>{user.email}</p>
+        </div>
+      </div>
+    ))}
+</div>
+```
+
+### Setting permissions
+
+Choose between Viewer and Editor roles before sending the invitation:
+
+```typescript Share.tsx
+<Select
+  value={shareAccess}
+  onValueChange={(val) => setShareAccess(val)}
+>
+  <SelectTrigger>
+    <SelectValue placeholder="Viewer" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="View">Viewer</SelectItem>
+    <SelectItem value="Edit">Editor</SelectItem>
+  </SelectContent>
+</Select>
+```
+
+### Sending invitations
+
+Invite users with a single API call:
+
+```typescript Share.tsx
+const shareNotesHandler = async () => {
+  setSending(true)
+  try {
+    const response = await fetch(`/api/notes/shared-statuses`, {
+      method: 'POST',
+      headers: {
+        Authorization: `${authToken}`,
+      },
+      body: JSON.stringify({
+        sharedWith: selectedUser,
+        permissions: selectedUser?.permission,
+        notes_id: notesId,
+      }),
+    })
+
+    if (response.ok) {
+      setSelectedUser(undefined)
+      toast.success(`Successfully sent the invite to ${selectedUser?.email}`)
+      getSharedStatuses()
+    }
+  } catch (error) {
+    toast.error('Error while sending the invite. Please try again.')
+  } finally {
+    setSending(false)
+  }
+}
+```
+
+## Managing access
+
+View and manage all users who have access to your note:
+
+```typescript Share.tsx
+<div className="flex flex-col gap-3 mt-2 max-h-44 overflow-y-auto">
+  {sharedStatuses.map((status) => (
+    <div className="w-full bg-gray-100 p-2 rounded-md flex flex-row items-center justify-between">
+      <div>
+        <p className="text-sm font-semibold">
+          {status.shared_with?.username}
+        </p>
+        <p>{status.shared_with?.email}</p>
+      </div>
+      <Select
+        value={status.permissions}
+        onValueChange={(val) => {
+          if (val === 'remove') {
+            removeSharedStatus(status.id)
+          } else {
+            updateSharedStatus(status.id, val)
+          }
+        }}
+      >
+        <SelectContent>
+          <SelectItem value="View">Viewer</SelectItem>
+          <SelectItem value="Edit">Editor</SelectItem>
+          <SelectItem value="remove">Remove</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  ))}
+</div>
+```
+
+### Updating permissions
+
+Change a user's permission level at any time:
+
+```typescript Share.tsx
+const updateSharedStatus = async (id: number, permission: string) => {
+  setActionLoading(id)
+  try {
+    const response = await fetch(
+      `/api/notes/shared-statuses?status_id=${id}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `${authToken}`,
+        },
+        body: JSON.stringify({
+          permissions: permission,
+        }),
+      },
+    )
+
+    if (response.ok) {
+      getSharedStatuses()
+    }
+  } catch (error) {
+    console.error('Error updating shared status: ', error)
+  }
+}
+```
+
+### Revoking access
+
+Remove a user's access entirely:
+
+```typescript Share.tsx
+const removeSharedStatus = async (id: number) => {
+  setActionLoading(id)
+  try {
+    const response = await fetch(
+      `/api/notes/shared-statuses?status_id=${id}`,
+      {
+        method: 'DELETE',
+        headers: {
+          Authorization: `${authToken}`,
+        },
+      },
+    )
+
+    if (response.status === 200) {
+      getSharedStatuses()
+    }
+  } catch (error) {
+    console.error('Error removing shared status: ', error)
+  }
+}
+```
+
+## Publishing notes
+
+Owners can publish notes to make them publicly accessible:
+
+```typescript Share.tsx
+const hanldleNotesPublish = async (visibility: 'Private' | 'Public') => {
+  setPublishLoading(true)
+  try {
+    const response = await fetch(`/api/notes/publish?notes_id=${notesId}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `${authToken}`,
+      },
+      body: JSON.stringify({
+        visibility: visibility,
+      }),
+    })
+
+    if (response.ok) {
+      getNotes(authToken)
+      toast.success(`Successfully published the notes.`)
+    }
+  } catch (error) {
+    toast.error('Error while publishing the notes. Please try again.')
+  }
+}
+```
+
+<Tip>
+Published notes appear in the Featured tab where other users can discover and view them, but only users you've explicitly shared with can edit them.
+</Tip>
+
+## Link sharing
+
+Share a direct link to your note:
+
+```typescript Share.tsx
+const copyHandler = () => {
+  const notesUrl = getAppUrl() + `/notes/${notesId}`
+
+  navigator.clipboard
+    .writeText(notesUrl)
+    .then(() => {
+      toast.success('Notes URL copied to clipboard')
+      setIsCopied(true)
+    })
+    .catch(() => {
+      toast.error('Error copying URL.')
+    })
+}
+```
+
+Users who receive the link will need appropriate permissions to access the note.

@@ -1,0 +1,310 @@
+---
+title: Rich text editor
+description: Powerful editing capabilities with Novel.sh and TipTap, including slash commands and extensive formatting options
+---
+
+Noteverse uses Novel.sh, a modern WYSIWYG editor built on TipTap, to provide a rich text editing experience with extensive formatting capabilities, slash commands, and media embedding.
+
+## Novel.sh integration
+
+The editor is built using Novel's `EditorRoot` and `EditorContent` components:
+
+```typescript editor.tsx
+import {
+  EditorRoot,
+  EditorCommand,
+  EditorCommandItem,
+  EditorCommandEmpty,
+  EditorContent,
+  type JSONContent,
+  EditorCommandList,
+  EditorBubble,
+} from 'novel'
+```
+
+This provides a complete editing environment with bubble menus, command palettes, and rich formatting options.
+
+## Editor extensions
+
+Noteverse includes a comprehensive set of TipTap extensions for advanced editing features:
+
+### Core extensions
+
+```typescript extensions.ts
+export const defaultExtensions = [
+  starterKit,
+  placeholder,
+  tiptapLink,
+  tiptapImage,
+  updatedImage,
+  taskList,
+  taskItem,
+  horizontalRule,
+  aiHighlight,
+  codeBlockLowlight,
+  youtube,
+  twitter,
+  mathematics,
+  characterCount,
+  TiptapUnderline,
+  MarkdownExtension,
+  HighlightExtension,
+  TextStyle,
+  Color,
+  CustomKeymap,
+  GlobalDragHandle
+]
+```
+
+### Text formatting
+
+- **StarterKit**: Provides bold, italic, strike, headings, lists, and blockquotes
+- **TiptapUnderline**: Adds underline formatting
+- **TextStyle & Color**: Enables text color customization
+- **HighlightExtension**: Allows text highlighting with custom colors
+
+### Lists and tasks
+
+- **TaskList & TaskItem**: Interactive checkboxes for to-do lists with nested support:
+
+```typescript extensions.ts
+const taskItem = TaskItem.configure({
+  HTMLAttributes: {
+    class: cx('flex gap-2 items-start my-4')
+  },
+  nested: true
+})
+```
+
+### Code and mathematics
+
+- **CodeBlockLowlight**: Syntax-highlighted code blocks supporting 37+ languages
+
+```typescript extensions.ts
+const codeBlockLowlight = CodeBlockLowlight.configure({
+  lowlight: createLowlight(common)
+})
+```
+
+- **Mathematics**: LaTeX math rendering with KaTeX:
+
+```typescript extensions.ts
+const mathematics = Mathematics.configure({
+  HTMLAttributes: {
+    class: cx('text-foreground rounded p-1 hover:bg-accent cursor-pointer')
+  },
+  katexOptions: {
+    throwOnError: false
+  }
+})
+```
+
+### Media embedding
+
+- **TiptapImage & UpdatedImage**: Image upload and display with drag-and-drop support
+- **Youtube**: Embed YouTube videos directly in notes
+- **Twitter**: Embed tweets from X/Twitter
+
+```typescript extensions.ts
+const youtube = Youtube.configure({
+  HTMLAttributes: {
+    class: cx('rounded-lg border border-muted')
+  },
+  inline: false
+})
+```
+
+## Slash commands
+
+Type `/` anywhere in your note to open the command palette with quick access to formatting options.
+
+### Available commands
+
+<CardGroup cols={2}>
+  <Card title="Text" icon="text">
+    Plain paragraph text
+  </Card>
+  <Card title="To-do List" icon="check-square">
+    Track tasks with interactive checkboxes
+  </Card>
+  <Card title="Heading 1-3" icon="heading">
+    Structure your content with headings
+  </Card>
+  <Card title="Bullet List" icon="list">
+    Create unordered lists
+  </Card>
+  <Card title="Numbered List" icon="list-ol">
+    Create ordered lists
+  </Card>
+  <Card title="Quote" icon="quote-right">
+    Highlight important quotes
+  </Card>
+  <Card title="Code" icon="code">
+    Insert syntax-highlighted code blocks
+  </Card>
+  <Card title="Image" icon="image">
+    Upload images from your computer
+  </Card>
+  <Card title="YouTube" icon="youtube">
+    Embed YouTube videos
+  </Card>
+  <Card title="Twitter" icon="twitter">
+    Embed tweets
+  </Card>
+</CardGroup>
+
+### Command implementation
+
+Each command is defined with a title, description, icon, and editor action:
+
+```typescript slash-command.tsx
+{
+  title: 'Heading 1',
+  description: 'Big section heading.',
+  searchTerms: ['title', 'big', 'large'],
+  icon: <Heading1 size={18} />,
+  command: ({ editor, range }) => {
+    editor
+      .chain()
+      .focus()
+      .deleteRange(range)
+      .setNode('heading', { level: 1 })
+      .run()
+  },
+}
+```
+
+### Image upload
+
+The image command opens a file picker and uploads the selected image:
+
+```typescript slash-command.tsx
+{
+  title: 'Image',
+  description: 'Upload an image from your computer.',
+  searchTerms: ['photo', 'picture', 'media'],
+  icon: <ImageIcon size={18} />,
+  command: ({ editor, range }) => {
+    editor.chain().focus().deleteRange(range).run()
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.onchange = async () => {
+      if (input.files?.length) {
+        const file = input.files[0]
+        const pos = editor.view.state.selection.from
+        uploadFn(file, editor.view, pos)
+      }
+    }
+    input.click()
+  },
+}
+```
+
+## Bubble menu selectors
+
+When you select text, a bubble menu appears with formatting options:
+
+```typescript editor.tsx
+<EditorBubble
+  tippyOptions={{
+    placement: 'top',
+    zIndex: 10,
+  }}
+  className="flex w-fit max-w-[90vw] overflow-hidden rounded-md border border-muted bg-background shadow-xl"
+>
+  <Separator orientation="vertical" />
+  <NodeSelector open={openNode} onOpenChange={setOpenNode} />
+  <Separator orientation="vertical" />
+  <LinkSelector open={openLink} onOpenChange={setOpenLink} />
+  <Separator orientation="vertical" />
+  <TextButtons />
+  <Separator orientation="vertical" />
+  <ColorSelector open={openColor} onOpenChange={setOpenColor} />
+</EditorBubble>
+```
+
+### Node selector
+
+Convert the selected block to different node types:
+- Paragraph
+- Heading 1, 2, or 3
+- Bullet list
+- Numbered list
+- Quote
+- Code block
+
+### Link selector
+
+Add, edit, or remove hyperlinks:
+
+```typescript extensions.ts
+const tiptapLink = TiptapLink.configure({
+  HTMLAttributes: {
+    class: cx(
+      'text-muted-foreground underline underline-offset-[3px] hover:text-primary transition-colors cursor-pointer'
+    )
+  }
+})
+```
+
+### Text buttons
+
+Quick access to basic text formatting:
+- Bold
+- Italic
+- Strikethrough
+- Underline
+- Code (inline)
+
+### Color selector
+
+Change text and highlight colors with a color picker.
+
+## Markdown support
+
+The editor includes markdown shortcuts for faster writing:
+
+```typescript extensions.ts
+MarkdownExtension
+```
+
+Type markdown syntax (like `**bold**` or `# heading`) and it will automatically convert to formatted text.
+
+## Image handling
+
+Drag and drop or paste images directly into the editor:
+
+```typescript editor.tsx
+editorProps={{
+  handleDOMEvents: {
+    keydown: (_view, event) => handleCommandNavigation(event),
+  },
+  handlePaste: (view, event) => handleImagePaste(view, event, uploadFn),
+  handleDrop: (view, event, _slice, moved) =>
+    handleImageDrop(view, event, moved, uploadFn),
+  attributes: {
+    class: `prose prose-sm dark:prose-invert prose-headings:font-title font-default focus:outline-none max-w-full p-0`,
+  },
+}}
+```
+
+<Tip>
+You can resize images after inserting them using the ImageResizer component that appears when you select an image.
+</Tip>
+
+## Character count
+
+Track the length of your notes with the built-in character counter:
+
+```typescript extensions.ts
+const characterCount = CharacterCount.configure()
+```
+
+## Custom keyboard shortcuts
+
+The `CustomKeymap` extension provides additional keyboard shortcuts for power users:
+
+```typescript extensions.ts
+CustomKeymap
+```

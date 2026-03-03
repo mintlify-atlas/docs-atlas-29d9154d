@@ -1,0 +1,615 @@
+---
+title: Editor Selectors
+description: Bubble menu components for formatting and styling selected text
+---
+
+## Overview
+
+Selectors are components that appear in the bubble menu when text is selected. They provide quick access to formatting options like node type, links, text styles, and colors.
+
+## Bubble Menu Structure
+
+The bubble menu contains four main selectors:
+
+```tsx
+<EditorBubble
+  tippyOptions={{
+    placement: 'top',
+    zIndex: 10,
+  }}
+  className="flex w-fit max-w-[90vw] overflow-hidden rounded-md border border-muted bg-background shadow-xl"
+>
+  <Separator orientation="vertical" />
+  <NodeSelector open={openNode} onOpenChange={setOpenNode} />
+  <Separator orientation="vertical" />
+  <LinkSelector open={openLink} onOpenChange={setOpenLink} />
+  <Separator orientation="vertical" />
+  <TextButtons />
+  <Separator orientation="vertical" />
+  <ColorSelector open={openColor} onOpenChange={setOpenColor} />
+</EditorBubble>
+```
+
+## NodeSelector
+
+Changes the block type of the current node (paragraph, heading, list, etc.).
+
+### Props
+
+<ParamField path="open" type="boolean" required>
+  Controls whether the popover is open
+</ParamField>
+
+<ParamField path="onOpenChange" type="(open: boolean) => void" required>
+  Callback when popover state changes
+</ParamField>
+
+### Implementation
+
+```tsx
+import { NodeSelector } from '@/components/editor/selectors/node-selector'
+import { useState } from 'react'
+
+export default function Editor() {
+  const [openNode, setOpenNode] = useState(false)
+  
+  return (
+    <NodeSelector 
+      open={openNode} 
+      onOpenChange={setOpenNode} 
+    />
+  )
+}
+```
+
+### Available Node Types
+
+<Tabs>
+  <Tab title="Text">
+    Plain paragraph text.
+    
+    ```tsx
+    {
+      name: 'Text',
+      icon: TextIcon,
+      command: (editor) => 
+        editor?.chain().focus().clearNodes().run(),
+      isActive: (editor) =>
+        editor.isActive('paragraph') &&
+        !editor.isActive('bulletList') &&
+        !editor.isActive('orderedList')
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Headings">
+    Three levels of headings.
+    
+    ```tsx
+    // Heading 1
+    {
+      name: 'Heading 1',
+      icon: Heading1,
+      command: (editor) =>
+        editor?.chain().focus().clearNodes().toggleHeading({ level: 1 }).run(),
+      isActive: (editor) =>
+        editor?.isActive('heading', { level: 1 })
+    }
+    
+    // Heading 2 and 3 follow same pattern
+    ```
+  </Tab>
+  
+  <Tab title="Lists">
+    Task lists, bullet lists, and numbered lists.
+    
+    ```tsx
+    // To-do List
+    {
+      name: 'To-do List',
+      icon: CheckSquare,
+      command: (editor) =>
+        editor?.chain().focus().clearNodes().toggleTaskList().run(),
+      isActive: (editor) => editor?.isActive('taskItem')
+    }
+    
+    // Bullet List
+    {
+      name: 'Bullet List',
+      icon: ListOrdered,
+      command: (editor) =>
+        editor?.chain().focus().clearNodes().toggleBulletList().run(),
+      isActive: (editor) => editor?.isActive('bulletList')
+    }
+    
+    // Numbered List
+    {
+      name: 'Numbered List',
+      icon: ListOrdered,
+      command: (editor) =>
+        editor?.chain().focus().clearNodes().toggleOrderedList().run(),
+      isActive: (editor) => editor?.isActive('orderedList')
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Blocks">
+    Quotes and code blocks.
+    
+    ```tsx
+    // Quote
+    {
+      name: 'Quote',
+      icon: TextQuote,
+      command: (editor) =>
+        editor?.chain().focus().clearNodes().toggleBlockquote().run(),
+      isActive: (editor) => editor?.isActive('blockquote')
+    }
+    
+    // Code
+    {
+      name: 'Code',
+      icon: Code,
+      command: (editor) =>
+        editor?.chain().focus().clearNodes().toggleCodeBlock().run(),
+      isActive: (editor) => editor?.isActive('codeBlock')
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### TypeScript Interface
+
+```tsx
+export type SelectorItem = {
+  name: string
+  icon: LucideIcon
+  command: (editor: ReturnType<typeof useEditor>['editor']) => void
+  isActive: (editor: ReturnType<typeof useEditor>['editor']) => boolean
+}
+
+interface NodeSelectorProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+```
+
+## LinkSelector
+
+Adds or edits hyperlinks on selected text.
+
+### Props
+
+<ParamField path="open" type="boolean" required>
+  Controls whether the popover is open
+</ParamField>
+
+<ParamField path="onOpenChange" type="(open: boolean) => void" required>
+  Callback when popover state changes
+</ParamField>
+
+### Implementation
+
+```tsx
+import { LinkSelector } from '@/components/editor/selectors/link-selector'
+import { useState } from 'react'
+
+export default function Editor() {
+  const [openLink, setOpenLink] = useState(false)
+  
+  return (
+    <LinkSelector 
+      open={openLink} 
+      onOpenChange={setOpenLink} 
+    />
+  )
+}
+```
+
+### Features
+
+<AccordionGroup>
+  <Accordion title="Auto-focus input">
+    The URL input automatically focuses when the popover opens:
+    
+    ```tsx
+    const inputRef = useRef<HTMLInputElement>(null)
+    
+    useEffect(() => {
+      inputRef.current?.focus()
+    })
+    ```
+  </Accordion>
+  
+  <Accordion title="URL validation">
+    Helper functions validate and normalize URLs:
+    
+    ```tsx
+    export function isValidUrl(url: string) {
+      try {
+        new URL(url)
+        return true
+      } catch (_e) {
+        return false
+      }
+    }
+    
+    export function getUrlFromString(str: string) {
+      if (isValidUrl(str)) return str
+      try {
+        if (str.includes('.') && !str.includes(' ')) {
+          return new URL(`https://${str}`).toString()
+        }
+      } catch (_e) {
+        return null
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Edit existing links">
+    Shows the current link URL when editing:
+    
+    ```tsx
+    <input
+      defaultValue={editor.getAttributes('link').href || ''}
+      placeholder="Paste a link"
+    />
+    ```
+  </Accordion>
+  
+  <Accordion title="Remove links">
+    Trash icon removes the link from selected text:
+    
+    ```tsx
+    {editor.getAttributes('link').href ? (
+      <Button
+        onClick={() => {
+          editor.chain().focus().unsetLink().run()
+          if (inputRef.current) {
+            inputRef.current.value = ''
+          }
+          onOpenChange(false)
+        }}
+      >
+        <Trash className="h-4 w-4" />
+      </Button>
+    ) : (
+      <Button size="icon">
+        <Check className="h-4 w-4" />
+      </Button>
+    )}
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Usage Example
+
+```tsx
+<form
+  onSubmit={(e) => {
+    e.preventDefault()
+    const input = e.currentTarget[0] as HTMLInputElement
+    const url = getUrlFromString(input.value)
+    if (url) {
+      editor.chain().focus().setLink({ href: url }).run()
+      onOpenChange(false)
+    }
+  }}
+>
+  <input
+    ref={inputRef}
+    type="text"
+    placeholder="Paste a link"
+    className="flex-1 bg-background p-1 text-sm outline-none"
+    defaultValue={editor.getAttributes('link').href || ''}
+  />
+</form>
+```
+
+## TextButtons
+
+Toggles text formatting (bold, italic, underline, strikethrough, code).
+
+### Implementation
+
+```tsx
+import { TextButtons } from '@/components/editor/selectors/text-buttons'
+
+<EditorBubble>
+  <TextButtons />
+</EditorBubble>
+```
+
+### Available Formats
+
+<Tabs>
+  <Tab title="Bold">
+    ```tsx
+    {
+      name: 'bold',
+      isActive: (editor) => editor?.isActive('bold'),
+      command: (editor) => editor?.chain().focus().toggleBold().run(),
+      icon: BoldIcon,
+    }
+    ```
+    
+    Keyboard shortcut: `Cmd/Ctrl + B`
+  </Tab>
+  
+  <Tab title="Italic">
+    ```tsx
+    {
+      name: 'italic',
+      isActive: (editor) => editor?.isActive('italic'),
+      command: (editor) => editor?.chain().focus().toggleItalic().run(),
+      icon: ItalicIcon,
+    }
+    ```
+    
+    Keyboard shortcut: `Cmd/Ctrl + I`
+  </Tab>
+  
+  <Tab title="Underline">
+    ```tsx
+    {
+      name: 'underline',
+      isActive: (editor) => editor?.isActive('underline'),
+      command: (editor) => editor?.chain().focus().toggleUnderline().run(),
+      icon: UnderlineIcon,
+    }
+    ```
+    
+    Keyboard shortcut: `Cmd/Ctrl + U`
+  </Tab>
+  
+  <Tab title="Strikethrough">
+    ```tsx
+    {
+      name: 'strike',
+      isActive: (editor) => editor?.isActive('strike'),
+      command: (editor) => editor?.chain().focus().toggleStrike().run(),
+      icon: StrikethroughIcon,
+    }
+    ```
+    
+    Keyboard shortcut: `Cmd/Ctrl + Shift + X`
+  </Tab>
+  
+  <Tab title="Code">
+    ```tsx
+    {
+      name: 'code',
+      isActive: (editor) => editor?.isActive('code'),
+      command: (editor) => editor?.chain().focus().toggleCode().run(),
+      icon: CodeIcon,
+    }
+    ```
+    
+    Keyboard shortcut: `Cmd/Ctrl + E`
+  </Tab>
+</Tabs>
+
+### Button Rendering
+
+```tsx
+<div className="flex">
+  {items.map((item) => (
+    <EditorBubbleItem
+      key={item.name}
+      onSelect={(editor) => {
+        item.command(editor)
+      }}
+    >
+      <Button size="sm" className="rounded-none" variant="ghost">
+        <item.icon
+          className={cn('h-4 w-4', {
+            'text-blue-500': item.isActive(editor),
+          })}
+        />
+      </Button>
+    </EditorBubbleItem>
+  ))}
+</div>
+```
+
+Active buttons are highlighted in blue.
+
+## ColorSelector
+
+Applies text color and background highlighting.
+
+### Props
+
+<ParamField path="open" type="boolean" required>
+  Controls whether the popover is open
+</ParamField>
+
+<ParamField path="onOpenChange" type="(open: boolean) => void" required>
+  Callback when popover state changes
+</ParamField>
+
+### Implementation
+
+```tsx
+import { ColorSelector } from '@/components/editor/selectors/color-selector'
+import { useState } from 'react'
+
+export default function Editor() {
+  const [openColor, setOpenColor] = useState(false)
+  
+  return (
+    <ColorSelector 
+      open={openColor} 
+      onOpenChange={setOpenColor} 
+    />
+  )
+}
+```
+
+### Text Colors
+
+<CodeGroup>
+```tsx Color Definitions
+const TEXT_COLORS: BubbleColorMenuItem[] = [
+  { name: 'Default', color: 'var(--novel-black)' },
+  { name: 'Purple', color: '#9333EA' },
+  { name: 'Red', color: '#E00000' },
+  { name: 'Yellow', color: '#EAB308' },
+  { name: 'Blue', color: '#2563EB' },
+  { name: 'Green', color: '#008A00' },
+  { name: 'Orange', color: '#FFA500' },
+  { name: 'Pink', color: '#BA4081' },
+  { name: 'Gray', color: '#A8A29E' },
+]
+```
+
+```tsx Apply Color
+editor.commands.unsetColor()
+if (name !== 'Default') {
+  editor.chain().focus().setColor(color).run()
+}
+```
+</CodeGroup>
+
+### Highlight Colors
+
+<CodeGroup>
+```tsx Highlight Definitions
+const HIGHLIGHT_COLORS: BubbleColorMenuItem[] = [
+  { name: 'Default', color: 'var(--novel-highlight-default)' },
+  { name: 'Purple', color: 'var(--novel-highlight-purple)' },
+  { name: 'Red', color: 'var(--novel-highlight-red)' },
+  { name: 'Yellow', color: 'var(--novel-highlight-yellow)' },
+  { name: 'Blue', color: 'var(--novel-highlight-blue)' },
+  { name: 'Green', color: 'var(--novel-highlight-green)' },
+  { name: 'Orange', color: 'var(--novel-highlight-orange)' },
+  { name: 'Pink', color: 'var(--novel-highlight-pink)' },
+  { name: 'Gray', color: 'var(--novel-highlight-gray)' },
+]
+```
+
+```tsx Apply Highlight
+editor.commands.unsetHighlight()
+if (name !== 'Default') {
+  editor.chain().focus().setHighlight({ color }).run()
+}
+```
+</CodeGroup>
+
+### Active Color Display
+
+The trigger button shows current colors:
+
+```tsx
+const activeColorItem = TEXT_COLORS.find(({ color }) =>
+  editor.isActive('textStyle', { color }),
+)
+
+const activeHighlightItem = HIGHLIGHT_COLORS.find(({ color }) =>
+  editor.isActive('highlight', { color }),
+)
+
+<Button size="sm" variant="ghost">
+  <span
+    className="rounded-sm px-1"
+    style={{
+      color: activeColorItem?.color,
+      backgroundColor: activeHighlightItem?.color,
+    }}
+  >
+    A
+  </span>
+  <ChevronDown className="h-4 w-4" />
+</Button>
+```
+
+### TypeScript Interface
+
+```tsx
+export interface BubbleColorMenuItem {
+  name: string
+  color: string
+}
+
+interface ColorSelectorProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+```
+
+## Custom Selectors
+
+Create your own selector components:
+
+```tsx
+import { useEditor, EditorBubbleItem } from 'novel'
+import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+
+interface MyCustomSelectorProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+export const MyCustomSelector = ({ open, onOpenChange }: MyCustomSelectorProps) => {
+  const { editor } = useEditor()
+  if (!editor) return null
+  
+  return (
+    <Popover modal={true} open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>
+        <Button size="sm" variant="ghost">
+          My Selector
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent>
+        <EditorBubbleItem
+          onSelect={(editor) => {
+            // Your custom command
+            onOpenChange(false)
+          }}
+        >
+          Custom Action
+        </EditorBubbleItem>
+      </PopoverContent>
+    </Popover>
+  )
+}
+```
+
+## Styling
+
+All selectors use Tailwind CSS and shadcn/ui components:
+
+```tsx
+// Button styling
+<Button 
+  size="sm" 
+  variant="ghost" 
+  className="gap-2 rounded-none border-none hover:bg-accent"
+>
+
+// Popover styling
+<PopoverContent 
+  sideOffset={5} 
+  align="start" 
+  className="w-48 p-1"
+>
+
+// Menu item styling
+<EditorBubbleItem
+  className="flex cursor-pointer items-center justify-between rounded-sm px-2 py-1 text-sm hover:bg-accent"
+>
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Editor Overview" icon="pen" href="/components/editor/overview">
+    Learn about editor architecture
+  </Card>
+  <Card title="Extensions" icon="puzzle-piece" href="/components/editor/extensions">
+    Explore TipTap extensions
+  </Card>
+</CardGroup>

@@ -1,0 +1,168 @@
+---
+title: 'Upvotes'
+description: 'Like and unlike notes to show appreciation'
+---
+
+## Toggle Upvote
+
+<api-endpoint>
+  POST /api/notes/upvotes
+</api-endpoint>
+
+Add or remove a like/upvote on a note. Use the `type` parameter to specify whether to add or remove the like.
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token for authentication
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="note_id" type="string" required>
+  The ID of the note to like or unlike
+</ParamField>
+
+<ParamField query="type" type="string" required>
+  Action to perform: `add` to like the note, `remove` to unlike
+</ParamField>
+
+### Response
+
+<ResponseField name="message" type="string">
+  Success message indicating like or unlike action
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Updated note information
+  
+  <ResponseField name="data.id" type="number">
+    The note ID
+  </ResponseField>
+  
+  <ResponseField name="data.likes" type="array">
+    Array of users who have liked this note
+    
+    <ResponseField name="data.likes[].likeId" type="number">
+      User ID of the person who liked
+    </ResponseField>
+    
+    <ResponseField name="data.likes[].userId" type="string">
+      Email of the user who liked
+    </ResponseField>
+  </ResponseField>
+</ResponseField>
+
+<CodeGroup>
+```bash Add Like
+curl -X POST "https://api.noteverse.com/api/notes/upvotes?note_id=123&type=add" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```bash Remove Like
+curl -X POST "https://api.noteverse.com/api/notes/upvotes?note_id=123&type=remove" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript - Add Like
+const response = await fetch(
+  'https://api.noteverse.com/api/notes/upvotes?note_id=123&type=add',
+  {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer YOUR_TOKEN'
+    }
+  }
+);
+const data = await response.json();
+```
+
+```javascript JavaScript - Remove Like
+const response = await fetch(
+  'https://api.noteverse.com/api/notes/upvotes?note_id=123&type=remove',
+  {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer YOUR_TOKEN'
+    }
+  }
+);
+const data = await response.json();
+```
+</CodeGroup>
+
+### Response Examples
+
+**Like Added**
+```json
+{
+  "message": "Note liked successfully",
+  "data": {
+    "id": 123,
+    "likes": [
+      {
+        "likeId": 42,
+        "userId": "user@example.com"
+      },
+      {
+        "likeId": 43,
+        "userId": "other@example.com"
+      }
+    ]
+  }
+}
+```
+
+**Like Removed**
+```json
+{
+  "message": "Note unliked successfully",
+  "data": {
+    "id": 123,
+    "likes": [
+      {
+        "likeId": 43,
+        "userId": "other@example.com"
+      }
+    ]
+  }
+}
+```
+
+<Note>
+  The endpoint uses a many-to-many relationship between users and notes. When you add a like, the current user is connected to the note's likes relation. When you remove a like, the user is disconnected.
+</Note>
+
+### Error Responses
+
+<ResponseField name="error" type="string">
+  Error message
+</ResponseField>
+
+<ResponseField name="statusCode" type="number">
+  HTTP status code
+</ResponseField>
+
+**400 Bad Request** - Authentication failure or missing parameters
+```json
+{
+  "error": "Error deleting note",
+  "statusCode": 400
+}
+```
+
+<Warning>
+  The `type` parameter must be either `add` or `remove`. If the type is missing or invalid, the endpoint will not process the request.
+</Warning>
+
+## Implementation Details
+
+The upvote system uses Prisma's `connect` and `disconnect` operations on the `likes` relation:
+
+- **Add like**: Connects the authenticated user to the note's `likes` array
+- **Remove like**: Disconnects the authenticated user from the note's `likes` array
+
+This creates a many-to-many relationship where:
+- Each note can have multiple users who liked it
+- Each user can like multiple notes
+- The same user cannot like a note multiple times (enforced by Prisma)

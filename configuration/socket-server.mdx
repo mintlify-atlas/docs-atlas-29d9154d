@@ -1,0 +1,579 @@
+---
+title: Socket.IO Server
+description: Configure Socket.IO for real-time collaborative editing and live user presence in Noteverse
+---
+
+Noteverse uses [Socket.IO](https://socket.io/) v4 to enable real-time collaboration, allowing multiple users to edit notes simultaneously with live updates and presence tracking.
+
+## Overview
+
+The Socket.IO server provides:
+
+- **Real-time content synchronization** across multiple editors
+- **Live user presence** tracking per note
+- **Room-based connections** for isolated note sessions
+- **Bidirectional communication** between client and server
+- **Automatic reconnection** handling
+
+## Server Configuration
+
+The Socket.IO server is integrated with the Next.js server in `server.mjs`.
+
+### Server Setup
+
+<CodeGroup>
+
+```javascript server.mjs
+import { createServer } from 'node:http'
+import next from 'next'
+import { Server } from 'socket.io'
+
+const dev = process.env.NODE_ENV !== 'production'
+const hostname = 'localhost'
+const port = 3000
+const app = next({ dev, hostname, port })
+const handler = app.getRequestHandler()
+
+const connectedUsers = {}
+
+app.prepare().then(() => {
+  const httpServer = createServer(handler)
+  const io = new Server(httpServer)
+  
+  // Socket.IO event handlers
+  io.on('connection', (socket) => {
+    // Handle events...
+  })
+  
+  httpServer.listen(port, () => {
+    console.log(`> Ready on http://${hostname}:${port}`)
+  })
+})
+```
+
+</CodeGroup>
+
+<Note>
+The Socket.IO server runs on the same port as Next.js (default: 3000) by wrapping the Next.js handler with an HTTP server.
+</Note>
+
+### Starting the Server
+
+<CodeGroup>
+
+```bash Development
+npm run dev
+# or
+bun dev
+```
+
+```bash Production
+NODE_ENV=production npm start
+# or
+NODE_ENV=production bun start
+```
+
+</CodeGroup>
+
+## Core Events
+
+### Connection Handling
+
+The server tracks connections and manages user presence:
+
+<CodeGroup>
+
+```javascript Connection Event
+io.on('connection', (socket) => {
+  console.log('Connected')
+  
+  // Handle user registration
+  socket.on('registerUser', (data, callback) => { /* ... */ })
+  
+  // Handle disconnection
+  socket.on('disconnect', () => { /* ... */ })
+})
+```
+
+</CodeGroup>
+
+### User Registration
+
+When a user opens a note, they register with the Socket.IO server:
+
+<CodeGroup>
+
+```javascript registerUser Event
+socket.on('registerUser', ({ userId, userName, notesId }, cb) => {
+  // Initialize room if it doesn't exist
+  if (!connectedUsers[notesId]) {
+    connectedUsers[notesId] = []
+  }
+  
+  // Check if user is already connected
+  const isAlreadyConnected = connectedUsers[notesId].some(
+    (user) => user.userId === userId || user.socket_id === socket.id
+  )
+  
+  // Add user to the room
+  if (!isAlreadyConnected) {
+    connectedUsers[notesId].push({ 
+      socket_id: socket.id, 
+      userId, 
+      userName 
+    })
+    console.log(`User registered: ${userName} (ID: ${userId}) in note ${notesId}`)
+  }
+  
+  // Notify all users in the room
+  io.to(notesId).emit('userList', connectedUsers[notesId])
+  
+  // Join the Socket.IO room
+  socket.join(notesId)
+  
+  // Send callback with current users
+  cb({ connectedUsers: connectedUsers[notesId] })
+})
+```
+
+</CodeGroup>
+
+**Parameters:**
+
+<ParamField path="userId" type="number" required>
+  Unique identifier for the user from the database
+</ParamField>
+
+<ParamField path="userName" type="string" required>
+  Display name of the user
+</ParamField>
+
+<ParamField path="notesId" type="string" required>
+  Unique identifier for the note (serves as the room ID)
+</ParamField>
+
+**Response:**
+
+```typescript
+{
+  connectedUsers: Array<{
+    socket_id: string
+    userId: number
+    userName: string
+  }>
+}
+```
+
+### User Updates
+
+Update user information (e.g., cursor position, selection):
+
+<CodeGroup>
+
+```javascript updateUser Event
+socket.on('updateUser', ({ userId, notesId, updates }, cb) => {
+  if (connectedUsers[notesId]) {
+    const userIndex = connectedUsers[notesId].findIndex(
+      (user) => user.userId === userId
+    )
+    
+    if (userIndex !== -1) {
+      // Merge updates with existing user data
+      connectedUsers[notesId][userIndex] = {
+        ...connectedUsers[notesId][userIndex],
+        ...updates
+      }
+      
+      // Broadcast updated user list
+      io.to(notesId).emit('userList', connectedUsers[notesId])
+      
+      cb({ success: true, users: connectedUsers[notesId] })
+    } else {
+      cb({ success: false, error: 'User not found' })
+    }
+  } else {
+    cb({ success: false, error: 'No users in this note' })
+  }
+})
+```
+
+</CodeGroup>
+
+**Use Cases:**
+- Update cursor position for collaborative editing
+- Track user selection ranges
+- Update user status (active, idle, typing)
+
+### Content Synchronization
+
+Real-time content updates are broadcast to all users in a note:
+
+<CodeGroup>
+
+```javascript contentChanged Event
+socket.on('contentChanged', ({ notesId, content }) => {
+  console.log(`Content changed in note ${notesId}:`, content)
+  
+  // Broadcast to all users in the room except sender
+  socket.to(notesId).emit('contentUpdated', content)
+})
+```
+
+</CodeGroup>
+
+**Flow:**
+1. User edits note content
+2. Client emits `contentChanged` with updated content
+3. Server broadcasts `contentUpdated` to other users in the room
+4. Other clients receive update and apply changes
+
+<Warning>
+The `socket.to()` method sends to all clients in the room **except** the sender. This prevents echo effects where the user sees their own changes twice.
+</Warning>
+
+### Live User Tracking
+
+Broadcast active users and their states:
+
+<CodeGroup>
+
+```javascript liveUsers Event
+socket.on('liveUsers', ({ notesId, users }, cb) => {
+  console.log(`Live users for ${notesId}:`, users)
+  
+  // Broadcast to other users in the room
+  socket.to(notesId).emit('liveUsers', users)
+  
+  cb({ liveUsers: users })
+})
+```
+
+</CodeGroup>
+
+Useful for displaying user avatars, cursors, or activity indicators.
+
+### Disconnection Handling
+
+<CodeGroup>
+
+```javascript disconnect Event
+socket.on('disconnect', () => {
+  console.log('Disconnected:', socket.id)
+  
+  // Remove user from all rooms
+  for (const notesId in connectedUsers) {
+    connectedUsers[notesId] = connectedUsers[notesId].filter(
+      (user) => user.socket_id !== socket.id
+    )
+    
+    // Notify remaining users
+    io.to(notesId).emit('userList', connectedUsers[notesId])
+  }
+})
+```
+
+</CodeGroup>
+
+Automatically cleans up user presence when they disconnect or close the browser.
+
+## Client Configuration
+
+The client-side Socket.IO setup is in `src/socket.js`:
+
+<CodeGroup>
+
+```javascript src/socket.js
+'use client'
+
+import { io } from 'socket.io-client'
+
+export const socket = io()
+```
+
+</CodeGroup>
+
+### Client Usage
+
+<CodeGroup>
+
+```typescript Example Client Component
+'use client'
+
+import { useEffect, useState } from 'react'
+import { socket } from '@/socket'
+import { useSession } from 'next-auth/react'
+
+export default function CollaborativeEditor({ noteId }) {
+  const { data: session } = useSession()
+  const [users, setUsers] = useState([])
+  const [content, setContent] = useState('')
+  
+  useEffect(() => {
+    if (!session?.user) return
+    
+    // Register user when component mounts
+    socket.emit('registerUser', {
+      userId: session.user.id,
+      userName: session.user.name,
+      notesId: noteId
+    }, (response) => {
+      setUsers(response.connectedUsers)
+    })
+    
+    // Listen for user list updates
+    socket.on('userList', (updatedUsers) => {
+      setUsers(updatedUsers)
+    })
+    
+    // Listen for content updates from other users
+    socket.on('contentUpdated', (newContent) => {
+      setContent(newContent)
+    })
+    
+    // Cleanup on unmount
+    return () => {
+      socket.off('userList')
+      socket.off('contentUpdated')
+    }
+  }, [session, noteId])
+  
+  const handleContentChange = (newContent) => {
+    setContent(newContent)
+    
+    // Emit content change to other users
+    socket.emit('contentChanged', {
+      notesId: noteId,
+      content: newContent
+    })
+  }
+  
+  return (
+    <div>
+      <div>Connected Users: {users.length}</div>
+      <textarea 
+        value={content} 
+        onChange={(e) => handleContentChange(e.target.value)}
+      />
+    </div>
+  )
+}
+```
+
+</CodeGroup>
+
+## Room Management
+
+Socket.IO uses rooms to isolate connections by note:
+
+### Room Structure
+
+```typescript
+connectedUsers = {
+  "note-123": [
+    { socket_id: "abc123", userId: 1, userName: "Alice" },
+    { socket_id: "def456", userId: 2, userName: "Bob" }
+  ],
+  "note-456": [
+    { socket_id: "ghi789", userId: 3, userName: "Charlie" }
+  ]
+}
+```
+
+### Joining Rooms
+
+<CodeGroup>
+
+```javascript Join Room
+socket.join(notesId)
+```
+
+</CodeGroup>
+
+### Broadcasting to Rooms
+
+<CodeGroup>
+
+```javascript Broadcasting
+// To all users in room (including sender)
+io.to(notesId).emit('event', data)
+
+// To all users in room (excluding sender)
+socket.to(notesId).emit('event', data)
+```
+
+</CodeGroup>
+
+## Environment Configuration
+
+Set the Socket.IO server URL in your environment variables:
+
+<CodeGroup>
+
+```bash .env.local
+NEXT_PUBLIC_SOCKET_URL=http://localhost:3000
+```
+
+</CodeGroup>
+
+For production:
+
+<CodeGroup>
+
+```bash .env.production
+NEXT_PUBLIC_SOCKET_URL=https://your-domain.com
+```
+
+</CodeGroup>
+
+<Note>
+If deploying to Vercel or similar platforms, Socket.IO requires a separate WebSocket server. Consider using [Vercel's Edge Runtime](https://vercel.com/docs/functions/edge-functions) or a dedicated Node.js server.
+</Note>
+
+## Advanced Features
+
+### Connection State Management
+
+<CodeGroup>
+
+```typescript Connection Status
+socket.on('connect', () => {
+  console.log('Connected to Socket.IO server')
+})
+
+socket.on('disconnect', (reason) => {
+  console.log('Disconnected:', reason)
+  
+  if (reason === 'io server disconnect') {
+    // Server forcefully disconnected, manually reconnect
+    socket.connect()
+  }
+})
+
+socket.on('connect_error', (error) => {
+  console.error('Connection error:', error)
+})
+```
+
+</CodeGroup>
+
+### Reconnection Configuration
+
+<CodeGroup>
+
+```javascript Custom Reconnection
+import { io } from 'socket.io-client'
+
+export const socket = io({
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000
+})
+```
+
+</CodeGroup>
+
+### Middleware & Authentication
+
+<CodeGroup>
+
+```javascript Server Middleware
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token
+  
+  if (isValidToken(token)) {
+    next()
+  } else {
+    next(new Error('Authentication error'))
+  }
+})
+```
+
+```javascript Client Authentication
+import { io } from 'socket.io-client'
+
+export const socket = io({
+  auth: {
+    token: 'your-auth-token'
+  }
+})
+```
+
+</CodeGroup>
+
+## Performance Considerations
+
+### Scaling Horizontally
+
+For production deployments with multiple server instances, use a Redis adapter:
+
+<CodeGroup>
+
+```javascript Redis Adapter
+import { createAdapter } from '@socket.io/redis-adapter'
+import { createClient } from 'redis'
+
+const pubClient = createClient({ url: 'redis://localhost:6379' })
+const subClient = pubClient.duplicate()
+
+Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
+  io.adapter(createAdapter(pubClient, subClient))
+})
+```
+
+</CodeGroup>
+
+### Rate Limiting
+
+Prevent spam by implementing rate limiting:
+
+<CodeGroup>
+
+```javascript Rate Limiting
+const rateLimiter = new Map()
+
+socket.on('contentChanged', (data) => {
+  const now = Date.now()
+  const lastEmit = rateLimiter.get(socket.id) || 0
+  
+  // Allow max 10 updates per second
+  if (now - lastEmit < 100) {
+    return // Too frequent
+  }
+  
+  rateLimiter.set(socket.id, now)
+  socket.to(data.notesId).emit('contentUpdated', data.content)
+})
+```
+
+</CodeGroup>
+
+## Troubleshooting
+
+### Common Issues
+
+**Connection fails:**
+- Verify `NEXT_PUBLIC_SOCKET_URL` is set correctly
+- Check CORS configuration for production
+- Ensure Socket.IO server is running
+
+**Users not seeing updates:**
+- Confirm users are in the same room (noteId)
+- Check browser console for Socket.IO errors
+- Verify event names match between client and server
+
+**Memory leaks:**
+- Always clean up event listeners in `useEffect` return
+- Remove disconnected users from `connectedUsers` object
+- Implement room cleanup for inactive notes
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Configuration" icon="database" href="/configuration/database">
+    Set up PostgreSQL for storing notes and user data
+  </Card>
+  <Card title="Environment Variables" icon="gear" href="/configuration/environment-variables">
+    Configure Socket.IO URL and other environment settings
+  </Card>
+</CardGroup>

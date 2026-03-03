@@ -1,0 +1,552 @@
+---
+title: Animated Backgrounds
+description: Decorative background components with cards, connections, and animations
+---
+
+## Overview
+
+Noteverse includes several animated background components that add visual interest to feature sections. These backgrounds display interconnected cards with hover effects and animations.
+
+## Version History Background
+
+Displays a git-style version history with branches and commits.
+
+### Import
+
+```tsx
+import CardVersionHistoryBackground from '@/components/ui/version-history-background'
+```
+
+### Usage
+
+```tsx
+export default function VersionHistorySection() {
+  return (
+    <div className="relative min-h-screen">
+      <CardVersionHistoryBackground />
+      
+      <div className="relative z-10 p-8">
+        <h1>Version History</h1>
+        <p>Track every change to your documents</p>
+      </div>
+    </div>
+  )
+}
+```
+
+### Features
+
+<Tabs>
+  <Tab title="Version Cards">
+    Floating cards representing different versions:
+    
+    ```tsx
+    <VersionCard
+      version="1.0"
+      description="Initial release"
+      x={10}  // X position as percentage
+      y={20}  // Y position as percentage
+    />
+    ```
+    
+    Each card:
+    - Displays version number
+    - Shows description
+    - Scales on hover
+    - Has transition animations
+  </Tab>
+  
+  <Tab title="Branch Lines">
+    SVG lines connecting versions:
+    
+    ```tsx
+    <BranchLine 
+      startX={10} 
+      startY={20} 
+      endX={30} 
+      endY={20} 
+    />
+    ```
+    
+    Represents:
+    - Main branch (horizontal)
+    - Feature branches (diagonal)
+    - Merge points
+  </Tab>
+  
+  <Tab title="Git Icons">
+    Decorative git-related icons:
+    
+    ```tsx
+    <GitBranch className="w-10 h-10 opacity-5" />
+    <GitMerge className="w-10 h-10 opacity-5" />
+    <GitCommit className="w-10 h-10 opacity-5" />
+    ```
+    
+    From `lucide-react`
+  </Tab>
+</Tabs>
+
+### Customization
+
+<CodeGroup>
+```tsx Custom Versions
+<VersionCard version="2.5" description="Bug fixes" x={45} y={30} />
+<VersionCard version="3.0" description="Major update" x={65} y={30} />
+```
+
+```tsx Custom Branch
+<BranchLine startX={45} startY={30} endX={65} endY={50} />
+<VersionCard version="2.6-beta" description="Beta release" x={65} y={50} />
+```
+</CodeGroup>
+
+### Styling
+
+The background uses fixed positioning with low opacity:
+
+```tsx
+className="fixed inset-0 bg-background overflow-hidden opacity-10"
+```
+
+Cards have hover effects:
+
+```tsx
+const [isHovered, setIsHovered] = useState(false)
+
+style={{
+  transform: `translate(-50%, -50%) ${isHovered ? 'scale(1.05)' : 'scale(1)'}`,
+}}
+```
+
+## Upvote Comments Background
+
+Displays a network of comments with floating icons.
+
+### Import
+
+```tsx
+import UpvoteCommentsBackground from '@/components/ui/upvote-comments-background'
+```
+
+### Usage
+
+```tsx
+export default function CommentsSection() {
+  return (
+    <div className="relative min-h-[400px]">
+      <UpvoteCommentsBackground />
+      
+      <div className="relative z-10 p-8">
+        <h2>Collaborative Comments</h2>
+        <p>Discuss and upvote ideas together</p>
+      </div>
+    </div>
+  )
+}
+```
+
+### Features
+
+<Tabs>
+  <Tab title="Comment Cards">
+    Cards showing user comments:
+    
+    ```tsx
+    <CommentCard
+      user="Alice"
+      comment="Nice insights!"
+      x={15}
+      y={30}
+    />
+    ```
+    
+    Features:
+    - User name
+    - Comment text
+    - Hover scale effect
+    - Connected by lines
+  </Tab>
+  
+  <Tab title="Connection Lines">
+    SVG lines connecting comments:
+    
+    ```tsx
+    <ConnectionLine 
+      startX={15} 
+      startY={30} 
+      endX={45} 
+      endY={30} 
+    />
+    ```
+  </Tab>
+  
+  <Tab title="Floating Icons">
+    Animated icons using Framer Motion:
+    
+    ```tsx
+    <FloatingIcon 
+      Icon={ThumbsUpIcon} 
+      x={20} 
+      y={20} 
+    />
+    ```
+    
+    Animation:
+    ```tsx
+    animate={{ y: [0, -5, 0] }}
+    transition={{
+      duration: 2.5,
+      repeat: Infinity,
+      ease: 'easeInOut',
+    }}
+    ```
+  </Tab>
+</Tabs>
+
+### Styling
+
+Relative positioning with custom opacity:
+
+```tsx
+className="relative rounded-lg bg-background p-4 overflow opacity-15 top-4 shadow-sm"
+```
+
+## Multilingual Support Background
+
+Displays a network of languages with colorful gradients.
+
+### Import
+
+```tsx
+import MultilingualSupportBackground from '@/components/ui/multilingual-support-background'
+```
+
+### Usage
+
+```tsx
+export default function LanguageSection() {
+  return (
+    <div className="relative min-h-screen">
+      <MultilingualSupportBackground />
+      
+      <div className="relative z-10 p-8">
+        <h1>Global Collaboration</h1>
+        <p>Support for multiple languages</p>
+      </div>
+    </div>
+  )
+}
+```
+
+### Features
+
+<Tabs>
+  <Tab title="Language Cards">
+    Cards with gradient backgrounds:
+    
+    ```tsx
+    <LanguageCard
+      language="English"
+      region="Global"
+      x={15}
+      y={20}
+      color="#6bc5ff"
+    />
+    ```
+    
+    Gradient styling:
+    ```tsx
+    style={{
+      background: `linear-gradient(135deg, ${color}, #ffffff20)`,
+    }}
+    ```
+  </Tab>
+  
+  <Tab title="Colored Connections">
+    Lines with custom colors:
+    
+    ```tsx
+    <ConnectionLine
+      startX={15}
+      startY={20}
+      endX={50}
+      endY={30}
+      color="#ff6b6b"
+    />
+    ```
+  </Tab>
+  
+  <Tab title="Language Icons">
+    Globe and language icons:
+    
+    ```tsx
+    <GlobeIcon className="w-10 h-10 text-blue-400 opacity-5" />
+    <LanguagesIcon className="w-10 h-10 text-pink-400 opacity-5" />
+    ```
+  </Tab>
+</Tabs>
+
+### Color Scheme
+
+```tsx
+const colors = {
+  english: '#6bc5ff',    // Blue
+  spanish: '#ff9f43',    // Orange
+  chinese: '#ff6b6b',    // Red
+  arabic: '#48dbfb',     // Light blue
+  french: '#ff9f43',     // Orange
+}
+```
+
+Background gradient:
+
+```tsx
+className="fixed inset-0 
+          bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 
+          overflow-hidden opacity-10"
+```
+
+## File Sharing Background
+
+Displays a network of shared files.
+
+### Import
+
+```tsx
+import FileSharingBackground from '@/components/ui/file-sharing-background'
+```
+
+### Usage
+
+```tsx
+export default function FileSharingSection() {
+  return (
+    <div className="relative min-h-screen">
+      <FileSharingBackground />
+      
+      <div className="relative z-10 p-8">
+        <h1>File Sharing</h1>
+        <p>Share documents with your team</p>
+      </div>
+    </div>
+  )
+}
+```
+
+### Features
+
+<Tabs>
+  <Tab title="File Cards">
+    Cards representing shared files:
+    
+    ```tsx
+    <FileCard
+      name="Project Report"
+      fileType="PDF"
+      x={20}
+      y={30}
+    />
+    ```
+  </Tab>
+  
+  <Tab title="Connection Network">
+    Lines showing file relationships:
+    
+    ```tsx
+    <ConnectionLine startX={20} startY={30} endX={50} endY={30} />
+    ```
+  </Tab>
+  
+  <Tab title="File Icons">
+    Decorative icons:
+    
+    ```tsx
+    <ShareIcon className="w-10 h-10 opacity-5" />
+    <FileIcon className="w-10 h-10 opacity-5" />
+    <UserIcon className="w-10 h-10 opacity-5" />
+    ```
+  </Tab>
+</Tabs>
+
+## Common Patterns
+
+### Card Component Structure
+
+All backgrounds share a similar card structure:
+
+```tsx
+const Card = ({ title, content, x, y }: CardProps) => {
+  const [isHovered, setIsHovered] = useState(false)
+
+  return (
+    <Card
+      className="absolute w-48 transition-all duration-300 ease-in-out hover:shadow-lg"
+      style={{
+        left: `${x}%`,
+        top: `${y}%`,
+        transform: `translate(-50%, -50%) ${isHovered ? 'scale(1.05)' : 'scale(1)'}`,
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <CardContent className="p-4">
+        <h3 className="text-lg font-semibold mb-2">{title}</h3>
+        <p className="text-sm text-muted-foreground">{content}</p>
+      </CardContent>
+    </Card>
+  )
+}
+```
+
+### Connection Lines
+
+SVG lines connecting elements:
+
+```tsx
+const ConnectionLine = ({ startX, startY, endX, endY, color = 'currentColor' }: LineProps) => (
+  <svg className="absolute top-0 left-0 w-full h-full" style={{ zIndex: -1 }}>
+    <line
+      x1={`${startX}%`}
+      y1={`${startY}%`}
+      x2={`${endX}%`}
+      y2={`${endY}%`}
+      stroke={color}
+      strokeWidth="1"
+      className="text-muted-foreground/30"
+    />
+  </svg>
+)
+```
+
+## Styling Tips
+
+<AccordionGroup>
+  <Accordion title="Positioning">
+    Use percentage-based positioning for responsive layouts:
+    
+    ```tsx
+    left: `${x}%`,   // 0-100
+    top: `${y}%`,    // 0-100
+    transform: 'translate(-50%, -50%)'  // Center on point
+    ```
+  </Accordion>
+  
+  <Accordion title="Opacity">
+    Keep backgrounds subtle with low opacity:
+    
+    ```tsx
+    className="opacity-10"  // Very subtle
+    className="opacity-15"  // Slightly more visible
+    ```
+  </Accordion>
+  
+  <Accordion title="Z-index">
+    Ensure content appears above background:
+    
+    ```tsx
+    // Background
+    <BackgroundComponent /> // z-index: auto or negative
+    
+    // Content
+    <div className="relative z-10">Content</div>
+    ```
+  </Accordion>
+  
+  <Accordion title="Transitions">
+    Smooth hover effects:
+    
+    ```tsx
+    className="transition-all duration-300 ease-in-out hover:shadow-lg"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Performance Considerations
+
+<Note>
+  - Use `fixed` positioning sparingly (can affect scrolling performance)
+  - Keep SVG elements simple
+  - Limit number of animated elements
+  - Use CSS transforms instead of position changes for animations
+  - Consider using `will-change` for frequently animated properties
+</Note>
+
+## Creating Custom Backgrounds
+
+Template for a new background component:
+
+```tsx
+'use client'
+
+import { useState } from 'react'
+import { MyIcon } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+
+const MyCard = ({ title, description, x, y }: any) => {
+  const [isHovered, setIsHovered] = useState(false)
+
+  return (
+    <Card
+      className="absolute w-48 transition-all duration-300 ease-in-out hover:shadow-lg"
+      style={{
+        left: `${x}%`,
+        top: `${y}%`,
+        transform: `translate(-50%, -50%) ${isHovered ? 'scale(1.05)' : 'scale(1)'}`,
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <CardContent className="p-4">
+        <h3 className="text-lg font-semibold mb-2">{title}</h3>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </CardContent>
+    </Card>
+  )
+}
+
+const ConnectionLine = ({ startX, startY, endX, endY }: any) => (
+  <svg className="absolute top-0 left-0 w-full h-full" style={{ zIndex: -1 }}>
+    <line
+      x1={`${startX}%`}
+      y1={`${startY}%`}
+      x2={`${endX}%`}
+      y2={`${endY}%`}
+      stroke="currentColor"
+      strokeWidth="1"
+      className="text-muted-foreground/30"
+    />
+  </svg>
+)
+
+export default function MyCustomBackground() {
+  return (
+    <div className="fixed inset-0 bg-background overflow-hidden opacity-10">
+      <div className="relative w-full h-full">
+        {/* Cards */}
+        <MyCard title="Card 1" description="Description" x={20} y={30} />
+        <MyCard title="Card 2" description="Description" x={50} y={40} />
+        
+        {/* Connections */}
+        <ConnectionLine startX={20} startY={30} endX={50} endY={40} />
+        
+        {/* Icons */}
+        <div className="absolute top-1/4 right-1/4 opacity-5">
+          <MyIcon className="w-10 h-10" />
+        </div>
+      </div>
+    </div>
+  )
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Buttons" icon="hand-pointer" href="/components/ui/buttons">
+    Learn about button components
+  </Card>
+  <Card title="Editor" icon="pen" href="/components/editor/overview">
+    Explore the editor components
+  </Card>
+</CardGroup>

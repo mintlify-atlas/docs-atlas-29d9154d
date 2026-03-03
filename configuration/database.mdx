@@ -1,0 +1,606 @@
+---
+title: Database Configuration
+description: Set up PostgreSQL and Prisma ORM for Noteverse with schema migrations and seeding
+---
+
+Noteverse uses [PostgreSQL](https://www.postgresql.org/) as the primary database and [Prisma](https://www.prisma.io/) as the ORM for type-safe database access.
+
+## Prerequisites
+
+- PostgreSQL 12 or higher installed
+- Node.js 18.x or higher
+- Database connection string (see [Environment Variables](/configuration/environment-variables))
+
+## Installation
+
+Prisma is already included in the project dependencies. After cloning the repository:
+
+<CodeGroup>
+
+```bash npm
+npm install
+```
+
+```bash bun
+bun install
+```
+
+</CodeGroup>
+
+<Note>
+The `postinstall` script automatically runs `prisma generate` after installation to generate the Prisma Client.
+</Note>
+
+## Database Setup
+
+### 1. Create Database
+
+Create a PostgreSQL database for Noteverse:
+
+<CodeGroup>
+
+```bash PostgreSQL CLI
+# Connect to PostgreSQL
+psql -U postgres
+
+# Create database
+CREATE DATABASE noteverse;
+
+# Create user (optional)
+CREATE USER noteverse_user WITH PASSWORD 'your_password';
+
+# Grant privileges
+GRANT ALL PRIVILEGES ON DATABASE noteverse TO noteverse_user;
+```
+
+</CodeGroup>
+
+### 2. Configure Connection
+
+Set the `DATABASE_URL` in your `.env.local` file:
+
+<CodeGroup>
+
+```bash .env.local
+DATABASE_URL="postgresql://noteverse_user:your_password@localhost:5432/noteverse?schema=public"
+```
+
+</CodeGroup>
+
+### 3. Run Migrations
+
+Apply the database schema using Prisma migrations:
+
+<CodeGroup>
+
+```bash Development
+# Generate Prisma Client
+npx prisma generate
+
+# Create and apply migrations
+npx prisma migrate dev --name init
+```
+
+```bash Production
+# Apply migrations without prompts
+npx prisma migrate deploy
+```
+
+</CodeGroup>
+
+<Warning>
+Always back up your database before running migrations in production. Use `prisma migrate deploy` for production environments.
+</Warning>
+
+## Database Schema
+
+The Prisma schema is located at `prisma/schema.prisma`.
+
+### Data Models
+
+Noteverse uses the following core models:
+
+#### User Model
+
+<CodeGroup>
+
+```prisma User
+model User {
+  id                Int            @id @default(autoincrement())
+  email             String         @unique
+  username          String
+  password          String
+  authToken         String?
+  emailVerified     Boolean        @default(false)
+  verificationToken String?
+
+  // Relations
+  sharedNotes       SharedStatus[] @relation("SharedBy")
+  receivedNotes     SharedStatus[] @relation("SharedWith")
+  notes             Note[]         @relation("Owner")
+  comments          Comment[]
+  likedNotes        Note[]         @relation("LikesOnNotes")
+  favoriteNotes     Note[]         @relation("FavoritesOnNotes")
+}
+```
+
+</CodeGroup>
+
+**Fields:**
+
+<ParamField path="id" type="Int" required>
+  Auto-incrementing primary key
+</ParamField>
+
+<ParamField path="email" type="String" required>
+  Unique email address for authentication
+</ParamField>
+
+<ParamField path="username" type="String" required>
+  Display name for the user
+</ParamField>
+
+<ParamField path="password" type="String" required>
+  Hashed password using bcrypt
+</ParamField>
+
+<ParamField path="authToken" type="String">
+  Custom authentication token for API access
+</ParamField>
+
+<ParamField path="emailVerified" type="Boolean" default="false">
+  Email verification status
+</ParamField>
+
+<ParamField path="verificationToken" type="String">
+  Token used for email verification
+</ParamField>
+
+#### Note Model
+
+<CodeGroup>
+
+```prisma Note
+enum Visibility {
+  Public
+  Private
+  Shared
+}
+
+model Note {
+  id            Int        @id @default(autoincrement())
+  title         String
+  description   String?
+  data          String?     // Rich text content
+  thumbnail     String?
+  views         Int        @default(0)
+  visibility    Visibility @default(Private)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  ownerId       Int
+  categoryId    Int?
+  subcategoryId Int?
+
+  // Relations
+  owner          User           @relation("Owner", fields: [ownerId], references: [id])
+  category       Category?      @relation(fields: [categoryId], references: [id])
+  subcategory    SubCategory?   @relation(fields: [subcategoryId], references: [id])
+  tags           Tag[]          @relation("TagsOnNotes")
+  comments       Comment[]      @relation("CommentsOnNote")
+  sharedStatuses SharedStatus[]
+  likes          User[]         @relation("LikesOnNotes")
+  favorites      User[]         @relation("FavoritesOnNotes")
+}
+```
+
+</CodeGroup>
+
+**Key Features:**
+
+- **Visibility Control**: Public, Private, or Shared access levels
+- **Rich Content**: Stores TipTap editor JSON in the `data` field
+- **Social Features**: Likes, favorites, and view tracking
+- **Categorization**: Optional category and subcategory classification
+- **Tagging**: Many-to-many relationship with tags
+
+#### Category & SubCategory
+
+<CodeGroup>
+
+```prisma Category
+model Category {
+  id            Int           @id @default(autoincrement())
+  title         String
+  description   String
+  thumbnail     String?
+  subcategories SubCategory[]
+  notes         Note[]
+}
+
+model SubCategory {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  thumbnail   String?
+  categoryId  Int
+  category    Category @relation(fields: [categoryId], references: [id])
+  notes       Note[]
+
+  @@unique([title, categoryId])
+}
+```
+
+</CodeGroup>
+
+Categories organize notes hierarchically with optional thumbnails for visual navigation.
+
+#### Tag Model
+
+<CodeGroup>
+
+```prisma Tag
+model Tag {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  notes     Note[]   @relation("TagsOnNotes")
+}
+```
+
+</CodeGroup>
+
+Tags enable flexible content organization with many-to-many relationships to notes.
+
+#### Comment Model
+
+<CodeGroup>
+
+```prisma Comment
+model Comment {
+  id              Int      @id @default(autoincrement())
+  text            String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  noteId          Int
+  userId          Int
+  parentCommentId Int?
+
+  note          Note     @relation("CommentsOnNote", fields: [noteId], references: [id])
+  user          User     @relation(fields: [userId], references: [id])
+  parentComment Comment? @relation("ParentComment", fields: [parentCommentId], references: [id])
+  replies       Comment[] @relation("ParentComment")
+}
+```
+
+</CodeGroup>
+
+Supports nested comments with parent-child relationships for threaded discussions.
+
+#### SharedStatus Model
+
+<CodeGroup>
+
+```prisma SharedStatus
+enum Permission {
+  View
+  Edit
+}
+
+model SharedStatus {
+  id           Int        @id @default(autoincrement())
+  sharedById   Int
+  sharedWithId Int
+  permissions  Permission
+  noteId       Int
+  sharedAt     DateTime   @default(now())
+
+  sharedBy   User @relation("SharedBy", fields: [sharedById], references: [id])
+  sharedWith User @relation("SharedWith", fields: [sharedWithId], references: [id])
+  note       Note @relation(fields: [noteId], references: [id])
+
+  @@map("shared_status")
+}
+```
+
+</CodeGroup>
+
+Manages note sharing with granular permissions (View or Edit) between users.
+
+## Prisma Client Usage
+
+The Prisma Client is initialized in `src/lib/prisma.ts`:
+
+<CodeGroup>
+
+```typescript lib/prisma.ts
+import { PrismaClient } from '@prisma/client'
+
+const globalForPrisma = global as unknown as { prisma: PrismaClient }
+
+export const prisma =
+  globalForPrisma.prisma ||
+  new PrismaClient({
+    log: ['query'],
+  })
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+export default prisma
+```
+
+</CodeGroup>
+
+### Querying Data
+
+<CodeGroup>
+
+```typescript Example Queries
+import prisma from '@/lib/prisma'
+
+// Find user by email
+const user = await prisma.user.findUnique({
+  where: { email: 'user@example.com' },
+  include: {
+    notes: true,
+    likedNotes: true
+  }
+})
+
+// Create a new note
+const note = await prisma.note.create({
+  data: {
+    title: 'My First Note',
+    description: 'A collaborative note',
+    data: JSON.stringify(editorContent),
+    visibility: 'Public',
+    ownerId: userId,
+    categoryId: 1
+  }
+})
+
+// Find notes with relations
+const notes = await prisma.note.findMany({
+  where: { visibility: 'Public' },
+  include: {
+    owner: true,
+    category: true,
+    tags: true,
+    comments: {
+      include: { user: true }
+    }
+  },
+  orderBy: { createdAt: 'desc' }
+})
+
+// Share a note with another user
+const sharedStatus = await prisma.sharedStatus.create({
+  data: {
+    noteId: noteId,
+    sharedById: currentUserId,
+    sharedWithId: recipientUserId,
+    permissions: 'Edit'
+  }
+})
+```
+
+</CodeGroup>
+
+## Database Seeding
+
+Seed your database with initial data:
+
+<CodeGroup>
+
+```bash Run Seed
+npm run seed
+```
+
+</CodeGroup>
+
+Create a seed script at `prisma/seed.ts`:
+
+<CodeGroup>
+
+```typescript prisma/seed.ts
+import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcrypt'
+
+const prisma = new PrismaClient()
+
+async function main() {
+  // Create categories
+  const techCategory = await prisma.category.create({
+    data: {
+      title: 'Technology',
+      description: 'Tech-related notes and articles',
+      subcategories: {
+        create: [
+          {
+            title: 'Web Development',
+            description: 'Frontend and backend development'
+          },
+          {
+            title: 'DevOps',
+            description: 'Infrastructure and deployment'
+          }
+        ]
+      }
+    }
+  })
+
+  // Create demo user
+  const hashedPassword = await bcrypt.hash('demo123', 10)
+  const demoUser = await prisma.user.create({
+    data: {
+      email: 'demo@noteverse.com',
+      username: 'Demo User',
+      password: hashedPassword,
+      emailVerified: true
+    }
+  })
+
+  // Create sample note
+  await prisma.note.create({
+    data: {
+      title: 'Welcome to Noteverse',
+      description: 'Getting started with collaborative notes',
+      visibility: 'Public',
+      ownerId: demoUser.id,
+      categoryId: techCategory.id
+    }
+  })
+
+  console.log('Database seeded successfully!')
+}
+
+main()
+  .catch((e) => {
+    console.error(e)
+    process.exit(1)
+  })
+  .finally(async () => {
+    await prisma.$disconnect()
+  })
+```
+
+</CodeGroup>
+
+## Migrations
+
+### Create Migration
+
+<CodeGroup>
+
+```bash Create Migration
+npx prisma migrate dev --name add_user_bio
+```
+
+</CodeGroup>
+
+### Apply Migrations
+
+<CodeGroup>
+
+```bash Apply in Production
+npx prisma migrate deploy
+```
+
+</CodeGroup>
+
+### Reset Database
+
+<Warning>
+This will delete all data in your database!
+</Warning>
+
+<CodeGroup>
+
+```bash Reset Database
+npx prisma migrate reset
+```
+
+</CodeGroup>
+
+## Prisma Studio
+
+Launch a visual database browser:
+
+<CodeGroup>
+
+```bash Prisma Studio
+npx prisma studio
+```
+
+</CodeGroup>
+
+Access at `http://localhost:5555` to view and edit data visually.
+
+## Performance Optimization
+
+### Connection Pooling
+
+Prisma handles connection pooling automatically. Configure pool size:
+
+<CodeGroup>
+
+```bash .env.local
+DATABASE_URL="postgresql://user:password@localhost:5432/noteverse?schema=public&connection_limit=10"
+```
+
+</CodeGroup>
+
+### Indexes
+
+Add indexes for frequently queried fields:
+
+<CodeGroup>
+
+```prisma schema.prisma
+model Note {
+  // ...
+  ownerId Int
+  
+  @@index([ownerId])
+  @@index([visibility])
+  @@index([createdAt])
+}
+```
+
+</CodeGroup>
+
+### Query Optimization
+
+<CodeGroup>
+
+```typescript Optimized Queries
+// Use select to fetch only needed fields
+const notes = await prisma.note.findMany({
+  select: {
+    id: true,
+    title: true,
+    description: true,
+    owner: {
+      select: { username: true }
+    }
+  }
+})
+
+// Use pagination for large datasets
+const paginatedNotes = await prisma.note.findMany({
+  take: 20,
+  skip: (page - 1) * 20,
+  orderBy: { createdAt: 'desc' }
+})
+```
+
+</CodeGroup>
+
+## Troubleshooting
+
+### Common Issues
+
+**Migration fails:**
+- Check database connection string
+- Ensure PostgreSQL is running
+- Verify user has sufficient privileges
+
+**Prisma Client not found:**
+- Run `npx prisma generate`
+- Check that `@prisma/client` is installed
+
+**Slow queries:**
+- Add database indexes
+- Use `select` instead of full models
+- Enable query logging to identify bottlenecks
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/configuration/authentication">
+    Configure user authentication with NextAuth.js
+  </Card>
+  <Card title="Socket Server" icon="bolt" href="/configuration/socket-server">
+    Set up real-time collaboration with Socket.IO
+  </Card>
+</CardGroup>

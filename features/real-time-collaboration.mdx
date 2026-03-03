@@ -1,0 +1,164 @@
+---
+title: Real-time collaboration
+description: Work together seamlessly with Socket.IO-powered real-time editing and cursor tracking
+---
+
+Noteverse enables multiple users to work on the same note simultaneously with real-time synchronization powered by Socket.IO. See changes as they happen and track where your collaborators are editing.
+
+## How it works
+
+The real-time collaboration system uses Socket.IO to maintain persistent connections between users and the server. When you open a shared note, your editor automatically connects to a collaborative session where all changes are instantly synchronized.
+
+### Socket.IO integration
+
+Noteverse initializes a Socket.IO client that handles all real-time communication:
+
+```typescript src/socket.js
+import { io } from 'socket.io-client'
+
+export const socket = io()
+```
+
+This connection is imported into the editor component to enable live updates.
+
+## Live cursor tracking
+
+See exactly where your collaborators are typing with real-time cursor position tracking. Each user's cursor is displayed with their name and a unique color.
+
+### Position updates
+
+Every time you make changes to the note, your cursor position is broadcast to other users:
+
+```typescript editor.tsx
+const handleUpdate = () => {
+  onChange(editor.getJSON())
+  
+  const { to } = editor.state.selection
+  socket.emit(
+    'updateUser',
+    {
+      userId: userData.id,
+      notesId,
+      updates: { position: to },
+    },
+    (response: any) => {
+      if (response.success) {
+        setLiveUsers(response.users)
+      }
+    },
+  )
+}
+```
+
+The `to` value represents your current cursor position in the document, which is sent to the server and distributed to all connected users.
+
+### Rendering collaborator carets
+
+The editor uses a custom `MultipleCarets` extension to display other users' cursor positions:
+
+```typescript editor.tsx
+const updateCarets = useCallback(
+  (connectedUsers: any) => {
+    if (editor && connectedUsers) {
+      const carets = connectedUsers.map((u: any, i: number) => ({
+        position: u.position,
+        name: u.userName || 'Noteverse user ' + i,
+        color: u.color,
+      }))
+      editor.commands.updateCarets(carets)
+    }
+  },
+  [editor, connectedUsers],
+)
+```
+
+Each caret displays:
+- **Position**: The exact character position in the document
+- **Name**: The user's display name or a fallback identifier
+- **Color**: A unique color to distinguish between collaborators
+
+## Editor configuration
+
+The collaborative editor is configured with the MultipleCarets extension:
+
+```typescript editor.tsx
+extensions={[
+  ...defaultExtensions,
+  slashCommand as any,
+  TextSearch,
+  MultipleCarets.configure({
+    carets: connectedUsers.map((u: any) => ({
+      position: u.position,
+      name: u.userName,
+      color: u.color,
+      isActive: u.isActive || false,
+    })),
+  }),
+]}
+```
+
+## Connection management
+
+The system tracks connected users in real-time:
+
+```typescript editor.tsx
+const [liveUsers, setLiveUsers] = useState<
+  { userName: string; position?: number; color?: string }[]
+>([])
+```
+
+When users join or leave, the `liveUsers` state is automatically updated through Socket.IO callbacks.
+
+<Note>
+The editor automatically filters out your own user from the displayed carets to avoid showing your own cursor position twice.
+</Note>
+
+## Content synchronization
+
+Changes to the note content are synchronized through the `onChange` callback:
+
+```typescript editor.tsx
+const handleUpdate = () => {
+  onChange(editor.getJSON())
+  // ... position tracking code
+}
+```
+
+The editor serializes its content to JSON format, which is then sent to other connected users through the Socket.IO connection.
+
+## Handling incoming updates
+
+When you receive updates from other users, the editor intelligently merges them:
+
+```typescript editor.tsx
+useEffect(() => {
+  if (editor && content) {
+    const currentContent = editor.getJSON()
+    const { to } = editor.state.selection
+    console.log(`The Carret Position : ${to}`)
+
+    if (JSON.stringify(currentContent) !== JSON.stringify(content)) {
+      editor.commands.setContent(content)
+    }
+  }
+}, [content])
+```
+
+The system compares the current content with incoming updates and only applies changes when necessary, preventing unnecessary re-renders.
+
+<Tip>
+Real-time collaboration works best with a stable internet connection. The system will attempt to reconnect automatically if your connection is interrupted.
+</Tip>
+
+## Permission-aware editing
+
+Collaboration respects user permissions. The editor's editability is controlled by the `canEdit` prop:
+
+```typescript editor.tsx
+<EditorContent
+  editable={canEdit}
+  // ... other props
+/>
+```
+
+Users with View permission can see live updates but cannot make changes themselves.

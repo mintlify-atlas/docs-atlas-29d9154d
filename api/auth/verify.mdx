@@ -1,0 +1,231 @@
+---
+title: "Verify Email"
+api: "POST /api/auth/verify"
+description: "Verify a user's email address using a verification token"
+---
+
+## Overview
+
+Verifies a user's email address using the verification token provided during registration. Once verified, the user's `emailVerified` field is set to `true` and the verification token is removed from their account.
+
+<Note>
+Email verification is required to confirm the user owns the email address they registered with. The verification token is generated during sign-up and should be sent to the user's email.
+</Note>
+
+## Request
+
+### Body Parameters
+
+<ParamField body="verificationToken" type="string" required>
+  The 32-byte hex verification token that was generated during user registration and sent to the user's email.
+</ParamField>
+
+## Response
+
+<ResponseField name="verified" type="boolean">
+  Indicates whether the verification was successful (always `true` in success responses).
+</ResponseField>
+
+<ResponseField name="user" type="object">
+  The verified user's basic information.
+  
+  <ResponseField name="email" type="string">
+    The verified user's email address.
+  </ResponseField>
+  
+  <ResponseField name="username" type="string">
+    The verified user's username.
+  </ResponseField>
+</ResponseField>
+
+## Status Codes
+
+- **200 OK** - Email successfully verified
+- **400 Bad Request** - Invalid or missing verification token, or user not found
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://your-domain.com/api/auth/verify \
+  -H "Content-Type: application/json" \
+  -d '{
+    "verificationToken": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://your-domain.com/api/auth/verify', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    verificationToken: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6',
+  }),
+});
+
+const data = await response.json();
+if (data.verified) {
+  console.log('Email verified successfully!');
+}
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://your-domain.com/api/auth/verify',
+    json={
+        'verificationToken': 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6',
+    }
+)
+
+data = response.json()
+if data.get('verified'):
+    print(f"Email verified for {data['user']['email']}")
+```
+
+</CodeGroup>
+
+### Success Response (200)
+
+```json
+{
+  "verified": true,
+  "user": {
+    "email": "alice@example.com",
+    "username": "Alice Johnson"
+  }
+}
+```
+
+### Error Responses (400)
+
+**Invalid or Missing Token**
+```json
+{
+  "error": "Invalid verification token"
+}
+```
+
+**User Not Found**
+```json
+{
+  "error": "No User found."
+}
+```
+
+**General Verification Error**
+```json
+{
+  "error": "Error Verifying email."
+}
+```
+
+## Error Cases
+
+<Warning>
+**Token Validation**: Verification tokens are single-use. Once a user's email is verified, the token is set to `null` and cannot be reused.
+</Warning>
+
+### Common Error Scenarios
+
+1. **Missing Verification Token**
+   - Status: 400
+   - Message: "Invalid verification token"
+   - Cause: `verificationToken` not provided in request body or is empty
+
+2. **Invalid Token**
+   - Status: 400
+   - Message: "No User found."
+   - Cause: No user exists with the provided verification token (token may be incorrect, already used, or expired)
+
+3. **Already Verified**
+   - Status: 400
+   - Message: "No User found."
+   - Cause: User has already verified their email (token was set to `null` after verification)
+
+4. **Database Error**
+   - Status: 400
+   - Message: "Error Verifying email."
+   - Cause: Exception during database query or update operation
+
+## Implementation Details
+
+### Verification Process
+
+1. **Token Lookup**: System searches for a user with the matching `verificationToken`
+2. **User Update**: If found, updates the user record:
+   - Sets `emailVerified` to `true`
+   - Sets `verificationToken` to `null`
+3. **Response**: Returns verification status and user information
+
+### Database Changes
+
+When verification succeeds, the User model is updated:
+
+```typescript
+{
+  emailVerified: true,      // Changed from false
+  verificationToken: null   // Cleared to prevent reuse
+}
+```
+
+## Integration Example
+
+### Complete Registration Flow
+
+```javascript
+// Step 1: Sign up
+const signupResponse = await fetch('/api/auth/signup', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    email: 'alice@example.com',
+    name: 'Alice Johnson',
+    password: 'SecurePass123!',
+  }),
+});
+
+const { verificationToken } = await signupResponse.json();
+
+// Step 2: Send verification email (implement your email service)
+await sendVerificationEmail('alice@example.com', verificationToken);
+
+// Step 3: User clicks verification link, extract token from URL
+const urlParams = new URLSearchParams(window.location.search);
+const token = urlParams.get('token');
+
+// Step 4: Verify email
+const verifyResponse = await fetch('/api/auth/verify', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ verificationToken: token }),
+});
+
+const result = await verifyResponse.json();
+if (result.verified) {
+  // Step 5: Redirect to sign in
+  window.location.href = '/signin';
+}
+```
+
+## Best Practices
+
+<Note>
+- **Email Delivery**: Implement a reliable email service to send verification links to users
+- **Link Format**: Include the verification token as a URL parameter for easy user experience
+- **Token Security**: Tokens are cryptographically random (32 bytes) and should be treated as secrets
+- **User Experience**: Provide clear feedback when verification succeeds or fails
+- **Resend Option**: Consider implementing a "resend verification email" feature for expired or lost tokens
+</Note>
+
+## Next Steps
+
+After successful email verification:
+
+1. User can now [sign in](/api/auth/signin) with full account access
+2. The `isEmailVerified` flag in their session will be `true`
+3. Access to email-verified-only features is granted

@@ -1,0 +1,578 @@
+---
+title: TipTap Extensions
+description: Comprehensive list of editor extensions and their configurations
+---
+
+## Overview
+
+Noteverse uses a rich set of TipTap extensions from the Novel.sh library, providing features like syntax highlighting, embeds, mathematical notation, and more.
+
+## Default Extensions
+
+All extensions are configured in `extensions.ts` and exported as `defaultExtensions`:
+
+```tsx
+import { defaultExtensions } from './extensions'
+
+extensions={[
+  ...defaultExtensions,
+  // Your custom extensions
+]}
+```
+
+## Core Extensions
+
+### StarterKit
+
+Provides essential editing functionality including paragraphs, headings, lists, and basic formatting.
+
+<Tabs>
+  <Tab title="Configuration">
+    ```tsx
+    import { StarterKit } from 'novel/extensions'
+    
+    const starterKit = StarterKit.configure({
+      bulletList: {
+        HTMLAttributes: {
+          class: 'list-disc list-outside leading-3 -mt-2'
+        }
+      },
+      orderedList: {
+        HTMLAttributes: {
+          class: 'list-decimal list-outside leading-3 -mt-2'
+        }
+      },
+      listItem: {
+        HTMLAttributes: {
+          class: 'leading-normal -mb-2'
+        }
+      },
+      blockquote: {
+        HTMLAttributes: {
+          class: 'border-l-4 border-primary'
+        }
+      },
+      codeBlock: {
+        HTMLAttributes: {
+          class: 'rounded-md bg-muted text-muted-foreground border p-5 font-mono font-medium'
+        }
+      },
+      code: {
+        HTMLAttributes: {
+          class: 'rounded-md bg-muted px-1.5 py-1 font-mono font-medium',
+          spellcheck: 'false'
+        }
+      },
+      horizontalRule: false,
+      dropcursor: {
+        color: '#DBEAFE',
+        width: 4
+      },
+      gapcursor: false
+    })
+    ```
+  </Tab>
+  
+  <Tab title="Features">
+    - **Paragraphs**: Default block type
+    - **Headings**: H1-H6 support
+    - **Lists**: Bullet and numbered lists
+    - **Blockquotes**: Styled with left border
+    - **Code blocks**: Inline and block code
+    - **Bold, Italic, Strike**: Text formatting
+    - **Drop cursor**: Visual feedback when dragging
+  </Tab>
+</Tabs>
+
+### Placeholder
+
+Displays placeholder text when the editor is empty:
+
+```tsx
+import { Placeholder } from 'novel/extensions'
+
+Placeholder.configure({
+  placeholder: 'Start typing or press / for commands...'
+})
+```
+
+### TextStyle & Color
+
+Enables text color and styling:
+
+```tsx
+import { TextStyle, Color } from 'novel/extensions'
+
+extensions={[
+  TextStyle,
+  Color
+]}
+```
+
+Used by the ColorSelector component for text and highlight colors.
+
+### TiptapUnderline
+
+Adds underline formatting:
+
+```tsx
+import { TiptapUnderline } from 'novel/extensions'
+
+extensions={[
+  TiptapUnderline
+]}
+```
+
+## Rich Content Extensions
+
+### TiptapLink
+
+Creates clickable links with custom styling:
+
+```tsx
+import { TiptapLink } from 'novel/extensions'
+import { cx } from 'class-variance-authority'
+
+const tiptapLink = TiptapLink.configure({
+  HTMLAttributes: {
+    class: cx(
+      'text-muted-foreground underline underline-offset-[3px]',
+      'hover:text-primary transition-colors cursor-pointer'
+    )
+  }
+})
+```
+
+<Note>
+  Links are managed through the [Link Selector](/components/editor/selectors#link-selector) in the bubble menu.
+</Note>
+
+### TiptapImage
+
+Handles image uploads with loading state:
+
+<CodeGroup>
+```tsx Configuration
+import { TiptapImage } from 'novel/extensions'
+import { UploadImagesPlugin } from 'novel/plugins'
+import { cx } from 'class-variance-authority'
+
+const tiptapImage = TiptapImage.extend({
+  addProseMirrorPlugins() {
+    return [
+      UploadImagesPlugin({
+        imageClass: cx('opacity-40 rounded-lg border border-stone-200')
+      })
+    ]
+  }
+}).configure({
+  allowBase64: true,
+  HTMLAttributes: {
+    class: cx('rounded-lg border border-muted')
+  }
+})
+```
+
+```tsx Image Upload Plugin
+// Shows loading state while uploading
+UploadImagesPlugin({
+  imageClass: 'opacity-40 rounded-lg border'
+})
+```
+</CodeGroup>
+
+### UpdatedImage
+
+Enhanced image component with resize handles:
+
+```tsx
+import { UpdatedImage } from 'novel/extensions'
+
+const updatedImage = UpdatedImage.configure({
+  HTMLAttributes: {
+    class: 'rounded-lg border border-muted'
+  }
+})
+```
+
+Works with the `ImageResizer` component for drag-to-resize functionality.
+
+### HorizontalRule
+
+Inserts horizontal dividers:
+
+```tsx
+import { HorizontalRule } from 'novel/extensions'
+
+const horizontalRule = HorizontalRule.configure({
+  HTMLAttributes: {
+    class: 'mt-4 mb-6 border-t border-muted-foreground'
+  }
+})
+```
+
+## Task Management
+
+### TaskList & TaskItem
+
+Creates interactive checkboxes:
+
+<CodeGroup>
+```tsx TaskList
+import { TaskList } from 'novel/extensions'
+
+const taskList = TaskList.configure({
+  HTMLAttributes: {
+    class: 'not-prose pl-2'
+  }
+})
+```
+
+```tsx TaskItem
+import { TaskItem } from 'novel/extensions'
+
+const taskItem = TaskItem.configure({
+  HTMLAttributes: {
+    class: 'flex gap-2 items-start my-4'
+  },
+  nested: true
+})
+```
+
+```markdown Example
+- [ ] Incomplete task
+- [x] Completed task
+- [ ] Another task
+  - [ ] Nested task
+```
+</CodeGroup>
+
+## Code Highlighting
+
+### CodeBlockLowlight
+
+Syntax highlighting for code blocks using Lowlight:
+
+```tsx
+import { CodeBlockLowlight } from 'novel/extensions'
+import { common, createLowlight } from 'lowlight'
+
+const codeBlockLowlight = CodeBlockLowlight.configure({
+  // 37 common languages included
+  lowlight: createLowlight(common)
+})
+```
+
+<Tabs>
+  <Tab title="Supported Languages">
+    The `common` package includes:
+    - JavaScript/TypeScript
+    - Python
+    - Java
+    - C/C++
+    - HTML/CSS
+    - Ruby
+    - Go
+    - Rust
+    - And 29 more...
+  </Tab>
+  
+  <Tab title="Usage">
+    ````markdown
+    ```javascript
+    function hello() {
+      console.log('Hello, world!')
+    }
+    ```
+    ````
+  </Tab>
+</Tabs>
+
+## Embeds
+
+### Youtube
+
+Embeds YouTube videos:
+
+```tsx
+import { Youtube } from 'novel/extensions'
+
+const youtube = Youtube.configure({
+  HTMLAttributes: {
+    class: 'rounded-lg border border-muted'
+  },
+  inline: false
+})
+```
+
+Insert via slash command or directly:
+
+```tsx
+editor.chain().focus().setYoutubeVideo({
+  src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+}).run()
+```
+
+### Twitter
+
+Embeds tweets:
+
+```tsx
+import { Twitter } from 'novel/extensions'
+
+const twitter = Twitter.configure({
+  HTMLAttributes: {
+    class: 'not-prose'
+  },
+  inline: false
+})
+```
+
+<Note>
+  Accepts both twitter.com and x.com URLs
+</Note>
+
+## Mathematics
+
+### Mathematics (KaTeX)
+
+Renders mathematical equations using KaTeX:
+
+```tsx
+import { Mathematics } from 'novel/extensions'
+
+const mathematics = Mathematics.configure({
+  HTMLAttributes: {
+    class: 'text-foreground rounded p-1 hover:bg-accent cursor-pointer'
+  },
+  katexOptions: {
+    throwOnError: false
+  }
+})
+```
+
+<Tabs>
+  <Tab title="Inline Math">
+    ```markdown
+    The equation $E = mc^2$ is Einstein's famous formula.
+    ```
+  </Tab>
+  
+  <Tab title="Block Math">
+    ```markdown
+    $$
+    \int_{a}^{b} f(x) dx = F(b) - F(a)
+    $$
+    ```
+  </Tab>
+</Tabs>
+
+## Special Features
+
+### AIHighlight
+
+Highlights AI-generated content:
+
+```tsx
+import { AIHighlight } from 'novel/extensions'
+
+const aiHighlight = AIHighlight
+```
+
+### HighlightExtension
+
+Text highlighting with multiple colors:
+
+```tsx
+import { HighlightExtension } from 'novel/extensions'
+
+extensions={[
+  HighlightExtension
+]}
+```
+
+Supports:
+- Default (yellow)
+- Purple
+- Red
+- Blue
+- Green
+- Orange
+- Pink
+- Gray
+
+### MarkdownExtension
+
+Markdown shortcuts while typing:
+
+```tsx
+import { MarkdownExtension } from 'novel/extensions'
+
+extensions={[
+  MarkdownExtension
+]}
+```
+
+Examples:
+- `# ` → Heading 1
+- `## ` → Heading 2
+- `- ` → Bullet list
+- `1. ` → Numbered list
+- `` `code` `` → Inline code
+- `> ` → Blockquote
+
+### CharacterCount
+
+Tracks document character count:
+
+```tsx
+import { CharacterCount } from 'novel/extensions'
+
+const characterCount = CharacterCount.configure()
+
+// Access count
+const count = editor.storage.characterCount.characters()
+```
+
+### CustomKeymap
+
+Custom keyboard shortcuts:
+
+```tsx
+import { CustomKeymap } from 'novel/extensions'
+
+extensions={[
+  CustomKeymap
+]}
+```
+
+### GlobalDragHandle
+
+Drag handle for block reordering:
+
+```tsx
+import { GlobalDragHandle } from 'novel/extensions'
+
+extensions={[
+  GlobalDragHandle
+]}
+```
+
+Hover over blocks to see the drag handle on the left.
+
+## Custom Extensions
+
+Noteverse includes custom extensions:
+
+### MultipleCarets
+
+Displays cursor positions for collaborative editing:
+
+```tsx
+import { MultipleCarets } from './entensions/caret'
+
+MultipleCarets.configure({
+  carets: [
+    {
+      position: 42,
+      name: 'Alice',
+      color: '#FF6B6B',
+      isActive: true
+    },
+    {
+      position: 108,
+      name: 'Bob',
+      color: '#4ECDC4',
+      isActive: false
+    }
+  ]
+})
+```
+
+### TextSearch
+
+Find and replace functionality:
+
+```tsx
+import { TextSearch } from './entensions/search-text'
+
+extensions={[
+  TextSearch
+]}
+
+// Clear search
+editor.commands.clearSearch()
+```
+
+## Complete Extension List
+
+```tsx
+export const defaultExtensions = [
+  starterKit,
+  placeholder,
+  tiptapLink,
+  tiptapImage,
+  updatedImage,
+  taskList,
+  taskItem,
+  horizontalRule,
+  aiHighlight,
+  codeBlockLowlight,
+  youtube,
+  twitter,
+  mathematics,
+  characterCount,
+  TiptapUnderline,
+  MarkdownExtension,
+  HighlightExtension,
+  TextStyle,
+  Color,
+  CustomKeymap,
+  GlobalDragHandle
+]
+```
+
+## Using Extensions
+
+Import and use the default extensions in your editor:
+
+```tsx
+import { defaultExtensions } from '@/components/editor/extensions'
+import MyCustomExtension from './my-extension'
+
+<EditorContent
+  extensions={[
+    ...defaultExtensions,
+    MyCustomExtension
+  ]}
+/>
+```
+
+## Styling with class-variance-authority
+
+Most extensions use `cx` from class-variance-authority for Tailwind autocomplete:
+
+```tsx
+import { cx } from 'class-variance-authority'
+
+const extension = Extension.configure({
+  HTMLAttributes: {
+    class: cx(
+      'base-class',
+      'hover:hover-class',
+      'dark:dark-class'
+    )
+  }
+})
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Slash Commands" icon="slash" href="/components/editor/slash-commands">
+    Learn about available slash commands
+  </Card>
+  <Card title="Selectors" icon="cursor" href="/components/editor/selectors">
+    Explore bubble menu selectors
+  </Card>
+</CardGroup>

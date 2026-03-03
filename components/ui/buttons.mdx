@@ -1,0 +1,543 @@
+---
+title: Button Components
+description: Specialized button components including rainbow-button and loading-button
+---
+
+## Overview
+
+Noteverse includes specialized button components that extend the base Button component with additional visual effects and loading states.
+
+## RainbowButton
+
+An eye-catching button with animated rainbow gradient border and glow effect.
+
+### Import
+
+```tsx
+import { RainbowButton } from '@/components/ui/rainbow-button'
+```
+
+### Props
+
+<ParamField path="children" type="React.ReactNode" required>
+  Button content
+</ParamField>
+
+<ParamField path="...props" type="React.ButtonHTMLAttributes<HTMLButtonElement>">
+  All standard HTML button attributes (onClick, disabled, type, etc.)
+</ParamField>
+
+### Basic Usage
+
+<CodeGroup>
+```tsx Basic
+import { RainbowButton } from '@/components/ui/rainbow-button'
+
+export default function Example() {
+  return (
+    <RainbowButton onClick={() => console.log('Clicked!')}>
+      Click Me
+    </RainbowButton>
+  )
+}
+```
+
+```tsx With Icon
+import { RainbowButton } from '@/components/ui/rainbow-button'
+import { Sparkles } from 'lucide-react'
+
+export default function Example() {
+  return (
+    <RainbowButton>
+      <Sparkles className="mr-2 h-4 w-4" />
+      Get Started
+    </RainbowButton>
+  )
+}
+```
+
+```tsx Disabled State
+import { RainbowButton } from '@/components/ui/rainbow-button'
+
+export default function Example() {
+  return (
+    <RainbowButton disabled>
+      Disabled
+    </RainbowButton>
+  )
+}
+```
+</CodeGroup>
+
+### Visual Design
+
+The RainbowButton features several layers of visual effects:
+
+<Tabs>
+  <Tab title="Gradient Border">
+    Animated rainbow gradient border using CSS variables:
+    
+    ```css
+    background: linear-gradient(
+      90deg,
+      hsl(var(--color-1)),
+      hsl(var(--color-5)),
+      hsl(var(--color-3)),
+      hsl(var(--color-4)),
+      hsl(var(--color-2))
+    )
+    background-size: 200%
+    animation: rainbow
+    ```
+  </Tab>
+  
+  <Tab title="Glow Effect">
+    Blurred gradient underneath the button:
+    
+    ```css
+    before:absolute 
+    before:bottom-[-20%] 
+    before:left-1/2 
+    before:h-1/5 
+    before:w-3/5
+    before:animate-rainbow
+    before:[filter:blur(calc(0.8*1rem))]
+    ```
+  </Tab>
+  
+  <Tab title="Theme Support">
+    Different gradients for light and dark modes:
+    
+    **Light Mode:**
+    ```css
+    bg-[linear-gradient(#121213,#121213),
+       linear-gradient(#121213_50%,rgba(18,18,19,0.6)_80%,rgba(18,18,19,0)),
+       linear-gradient(90deg,hsl(var(--color-1)),...)]]
+    ```
+    
+    **Dark Mode:**
+    ```css
+    dark:bg-[linear-gradient(#fff,#fff),
+            linear-gradient(#fff_50%,rgba(255,255,255,0.6)_80%,rgba(0,0,0,0)),
+            linear-gradient(90deg,hsl(var(--color-1)),...)]]
+    ```
+  </Tab>
+</Tabs>
+
+### CSS Variables
+
+Define these color variables in your CSS:
+
+```css
+:root {
+  --color-1: 0 100% 63%;
+  --color-2: 270 100% 63%;
+  --color-3: 210 100% 63%;
+  --color-4: 195 100% 63%;
+  --color-5: 90 100% 63%;
+}
+
+@keyframes rainbow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-rainbow {
+  animation: rainbow 8s linear infinite;
+}
+```
+
+### Styling
+
+The button uses Tailwind classes with the `cn` utility:
+
+```tsx
+className={cn(
+  'h-11 px-8 py-2',
+  'inline-flex items-center justify-center',
+  'rounded-xl font-medium',
+  'transition-colors',
+  'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+  'disabled:pointer-events-none disabled:opacity-50',
+  'relative group animate-rainbow cursor-pointer',
+  'border-0 bg-[length:200%]',
+  'text-primary-foreground',
+  '[background-clip:padding-box,border-box,border-box]',
+  '[background-origin:border-box]',
+  '[border:calc(0.08*1rem)_solid_transparent]',
+  // ... gradient backgrounds
+)}
+```
+
+### TypeScript Interface
+
+```tsx
+interface RainbowButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {}
+```
+
+## LoadingButton
+
+A button that displays a loading spinner and custom text during async operations.
+
+### Import
+
+```tsx
+import LoadingButton from '@/components/ui/loading-button'
+```
+
+### Props
+
+<ParamField path="loading" type="boolean" required>
+  Whether to show loading state
+</ParamField>
+
+<ParamField path="children" type="React.ReactNode" required>
+  Button content when not loading
+</ParamField>
+
+<ParamField path="...props" type="ButtonProps">
+  All props from the base Button component (variant, size, etc.)
+</ParamField>
+
+### Basic Usage
+
+<CodeGroup>
+```tsx Form Submit
+import LoadingButton from '@/components/ui/loading-button'
+import { useState } from 'react'
+
+export default function Form() {
+  const [isLoading, setIsLoading] = useState(false)
+  
+  const handleSubmit = async () => {
+    setIsLoading(true)
+    try {
+      await submitForm()
+    } finally {
+      setIsLoading(false)
+    }
+  }
+  
+  return (
+    <LoadingButton 
+      loading={isLoading} 
+      onClick={handleSubmit}
+    >
+      Submit
+    </LoadingButton>
+  )
+}
+```
+
+```tsx API Call
+import LoadingButton from '@/components/ui/loading-button'
+import { useState } from 'react'
+
+export default function CreateNote() {
+  const [creating, setCreating] = useState(false)
+  
+  const createNote = async () => {
+    setCreating(true)
+    try {
+      const response = await fetch('/api/notes', {
+        method: 'POST',
+        body: JSON.stringify({ title: 'New Note' })
+      })
+      const data = await response.json()
+    } finally {
+      setCreating(false)
+    }
+  }
+  
+  return (
+    <LoadingButton loading={creating} onClick={createNote}>
+      Create Note
+    </LoadingButton>
+  )
+}
+```
+
+```tsx With Variants
+import LoadingButton from '@/components/ui/loading-button'
+import { useState } from 'react'
+
+export default function Example() {
+  const [loading, setLoading] = useState(false)
+  
+  return (
+    <div className="flex gap-2">
+      <LoadingButton 
+        loading={loading}
+        variant="default"
+      >
+        Default
+      </LoadingButton>
+      
+      <LoadingButton 
+        loading={loading}
+        variant="outline"
+      >
+        Outline
+      </LoadingButton>
+      
+      <LoadingButton 
+        loading={loading}
+        variant="ghost"
+      >
+        Ghost
+      </LoadingButton>
+    </div>
+  )
+}
+```
+</CodeGroup>
+
+### Loading State
+
+When `loading={true}`, the button displays:
+
+```tsx
+<Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...
+```
+
+The loading text "Creating..." is hardcoded. To customize it:
+
+<Tabs>
+  <Tab title="Custom Loading Text">
+    Modify the component to accept a `loadingText` prop:
+    
+    ```tsx
+    type LoadingButtonProps = {
+      loading: boolean
+      loadingText?: string
+    } & ButtonProps
+    
+    export default function LoadingButton({
+      children,
+      loading,
+      loadingText = 'Loading...',
+      ...props
+    }: LoadingButtonProps) {
+      return (
+        <Button {...props} disabled={props.disabled || loading}>
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {loadingText}
+            </>
+          ) : (
+            children
+          )}
+        </Button>
+      )
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Usage with Custom Text">
+    ```tsx
+    <LoadingButton 
+      loading={isLoading}
+      loadingText="Saving..."
+    >
+      Save
+    </LoadingButton>
+    
+    <LoadingButton 
+      loading={isDeleting}
+      loadingText="Deleting..."
+    >
+      Delete
+    </LoadingButton>
+    ```
+  </Tab>
+</Tabs>
+
+### Disabled State
+
+The button is automatically disabled during loading:
+
+```tsx
+<Button {...props} disabled={props.disabled || loading}>
+```
+
+This prevents multiple submissions and provides clear feedback.
+
+### TypeScript Interface
+
+```tsx
+import { ButtonProps } from './button'
+
+type LoadingButtonProps = {
+  loading: boolean
+} & ButtonProps
+```
+
+### Customization
+
+<AccordionGroup>
+  <Accordion title="Custom spinner">
+    Replace the `Loader2` icon:
+    
+    ```tsx
+    import { Spinner } from 'lucide-react'
+    
+    {loading ? (
+      <>
+        <Spinner className="mr-2 h-4 w-4 animate-spin" />
+        Creating...
+      </>
+    ) : (
+      children
+    )}
+    ```
+  </Accordion>
+  
+  <Accordion title="Spinner only">
+    Show only the spinner without text:
+    
+    ```tsx
+    {loading ? (
+      <Loader2 className="h-4 w-4 animate-spin" />
+    ) : (
+      children
+    )}
+    ```
+  </Accordion>
+  
+  <Accordion title="Different sizes">
+    Adjust spinner size based on button size:
+    
+    ```tsx
+    const spinnerSize = props.size === 'sm' ? 'h-3 w-3' : 'h-4 w-4'
+    
+    <Loader2 className={`mr-2 animate-spin ${spinnerSize}`} />
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Base Button Component
+
+Both specialized buttons extend the base Button component from shadcn/ui:
+
+```tsx
+import { Button } from '@/components/ui/button'
+
+<Button variant="default" size="default">
+  Click me
+</Button>
+```
+
+### Button Variants
+
+- `default`: Primary button style
+- `destructive`: For dangerous actions
+- `outline`: Outlined button
+- `secondary`: Secondary button style
+- `ghost`: Transparent button
+- `link`: Link-styled button
+
+### Button Sizes
+
+- `default`: Standard size
+- `sm`: Small
+- `lg`: Large
+- `icon`: Square button for icons
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use RainbowButton sparingly">
+    The rainbow effect is attention-grabbing. Use it for primary CTAs only:
+    
+    ```tsx
+    // Good: Primary CTA
+    <RainbowButton onClick={startTrial}>
+      Start Free Trial
+    </RainbowButton>
+    
+    // Not ideal: Multiple rainbow buttons
+    <div>
+      <RainbowButton>Save</RainbowButton>
+      <RainbowButton>Cancel</RainbowButton>
+    </div>
+    ```
+  </Accordion>
+  
+  <Accordion title="Always use LoadingButton for async actions">
+    Prevent multiple submissions and provide feedback:
+    
+    ```tsx
+    // Good
+    <LoadingButton loading={isSubmitting} onClick={submit}>
+      Submit
+    </LoadingButton>
+    
+    // Bad: No loading state
+    <Button onClick={submit}>Submit</Button>
+    ```
+  </Accordion>
+  
+  <Accordion title="Provide meaningful loading text">
+    Make it clear what's happening:
+    
+    ```tsx
+    // Good
+    <LoadingButton loading={isSaving} loadingText="Saving changes...">
+      Save
+    </LoadingButton>
+    
+    // Not helpful
+    <LoadingButton loading={isSaving} loadingText="Loading...">
+      Save
+    </LoadingButton>
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Accessibility
+
+Both components support standard button accessibility features:
+
+```tsx
+// Disabled state
+<LoadingButton loading={false} disabled>
+  Disabled
+</LoadingButton>
+
+// ARIA label
+<RainbowButton aria-label="Get started with Noteverse">
+  Get Started
+</RainbowButton>
+
+// Keyboard navigation
+<LoadingButton 
+  loading={false}
+  onKeyDown={(e) => {
+    if (e.key === 'Enter') {
+      handleSubmit()
+    }
+  }}
+>
+  Submit
+</LoadingButton>
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Forms" icon="input" href="/components/ui/forms">
+    Learn about form input components
+  </Card>
+  <Card title="Dialogs" icon="window" href="/components/ui/dialogs">
+    Explore modal and drawer components
+  </Card>
+</CardGroup>

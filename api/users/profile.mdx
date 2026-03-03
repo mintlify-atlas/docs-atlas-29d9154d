@@ -1,0 +1,156 @@
+---
+title: 'User Profile'
+description: 'Retrieve user information and profiles'
+---
+
+## Get Users
+
+<api-endpoint>
+  GET /api/users
+</api-endpoint>
+
+Retrieve a list of all users in the system. This endpoint returns basic user information including ID, email, and username.
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token for authentication
+</ParamField>
+
+### Response
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  Array of user objects
+  
+  <ResponseField name="data[].id" type="number">
+    Unique identifier for the user
+  </ResponseField>
+  
+  <ResponseField name="data[].email" type="string">
+    User's email address
+  </ResponseField>
+  
+  <ResponseField name="data[].username" type="string">
+    User's username
+  </ResponseField>
+</ResponseField>
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://api.noteverse.com/api/users \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch(
+  'https://api.noteverse.com/api/users',
+  {
+    headers: {
+      'Authorization': 'Bearer YOUR_TOKEN'
+    }
+  }
+);
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+headers = {
+    'Authorization': 'Bearer YOUR_TOKEN'
+}
+
+response = requests.get(
+    'https://api.noteverse.com/api/users',
+    headers=headers
+)
+data = response.json()
+```
+</CodeGroup>
+
+### Response Example
+
+```json
+{
+  "message": "Users fetched successfully",
+  "data": [
+    {
+      "id": 1,
+      "email": "alice@example.com",
+      "username": "alice"
+    },
+    {
+      "id": 2,
+      "email": "bob@example.com",
+      "username": "bob"
+    },
+    {
+      "id": 3,
+      "email": "charlie@example.com",
+      "username": "charlie"
+    }
+  ]
+}
+```
+
+<Note>
+  This endpoint returns only public user information. Sensitive fields like password, authToken, and verificationToken are not included in the response.
+</Note>
+
+### Error Responses
+
+<ResponseField name="error" type="string">
+  Error message describing what went wrong
+</ResponseField>
+
+<ResponseField name="statusCode" type="number">
+  HTTP status code indicating the error type
+</ResponseField>
+
+**401 Unauthorized** - Invalid or missing authentication token
+```json
+{
+  "error": "Invalid authentication token",
+  "statusCode": 401
+}
+```
+
+**403 Forbidden** - Token validation failed
+```json
+{
+  "error": "Authentication failed",
+  "statusCode": 403
+}
+```
+
+## Use Cases
+
+This endpoint is commonly used for:
+
+- **User Search**: Finding users to share notes with
+- **Autocomplete**: Populating user selection dropdowns
+- **Team Management**: Displaying team members
+- **Social Features**: Showing available users for mentions or collaborations
+
+## Security
+
+The endpoint requires a valid authentication token in the Authorization header. The token is validated using the `authTokenValidation` function before any user data is returned.
+
+<Warning>
+  All requests must include a valid Bearer token. Requests without authentication will be rejected with a 401 or 403 status code.
+</Warning>
+
+## Data Privacy
+
+The response intentionally excludes sensitive user data:
+
+- Password (hashed)
+- Authentication tokens
+- Email verification tokens
+- Email verification status
+
+Only the user's ID, email, and username are exposed through this endpoint.

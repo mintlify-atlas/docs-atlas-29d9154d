@@ -1,0 +1,299 @@
+---
+title: Full-text search
+description: Find any content instantly with powerful search across all your notes
+---
+
+Noteverse includes a full-text search system that helps you quickly locate notes and specific content within them. Search across titles, descriptions, and note content with real-time results.
+
+## Search interface
+
+The search component provides a simple, intuitive interface:
+
+```typescript search.tsx
+import { Input } from 'antd'
+import { useEffect, useState } from 'react'
+import { useEditorContext } from '@/context/editorContext'
+
+const Search = () => {
+  const { editor } = useEditorContext()
+  const [searchText, setSearchText] = useState('')
+  
+  const onChangeHandler = (text: string) => {
+    editor.commands.search(text)
+    setSearchText(text)
+  }
+
+  const clearHandler = () => {
+    editor.commands.clearSearch()
+  }
+
+  return (
+    <Input
+      type="text"
+      value={searchText}
+      placeholder="Search"
+      onChange={(e) => onChangeHandler(e.target.value)}
+      allowClear
+      onClear={clearHandler}
+    />
+  )
+}
+```
+
+## In-editor search
+
+The search functionality is integrated directly into the editor through the `TextSearch` extension:
+
+```typescript editor.tsx
+import { TextSearch } from './entensions/search-text'
+
+extensions={[
+  ...defaultExtensions,
+  slashCommand as any,
+  TextSearch,
+  MultipleCarets.configure({ /* ... */ }),
+]}
+```
+
+This enables:
+- **Live highlighting**: Search terms are highlighted as you type
+- **Instant results**: No need to submit a search query
+- **In-context search**: See results within the note content
+
+## Search commands
+
+The editor exposes two custom commands for search functionality:
+
+### Search command
+
+Highlight all occurrences of a search term:
+
+```typescript
+editor.commands.search(text)
+```
+
+This command:
+- Finds all matches in the current note
+- Highlights them with a distinctive style
+- Scrolls to the first match
+
+### Clear search command
+
+Remove all search highlights:
+
+```typescript
+editor.commands.clearSearch()
+```
+
+This is automatically called when:
+- The search input is cleared
+- You start editing the document
+- You close the search interface
+
+## Editor integration
+
+Search highlights are cleared automatically when editing:
+
+```typescript editor.tsx
+const handleUpdate = () => {
+  onChange(editor.getJSON())
+
+  //@ts-ignore
+  editor.commands.clearSearch()
+
+  const { to } = editor.state.selection
+  socket.emit('updateUser', { /* ... */ })
+}
+```
+
+This ensures search highlights don't interfere with real-time collaboration.
+
+## Search across notes
+
+While the in-editor search focuses on content within a single note, the application also supports searching across all accessible notes:
+
+### Searchable fields
+
+The search system can query:
+
+```prisma schema.prisma
+model Note {
+  id          Int       @id @default(autoincrement())
+  title       String                    // Searchable
+  description String?                   // Searchable
+  data        String?                   // Searchable (note content)
+  visibility  Visibility @default(Private)
+  // ...
+}
+```
+
+- **Title**: Primary search field, highest relevance
+- **Description**: Note summary or excerpt
+- **Data**: Full note content in JSON format
+
+## Access control
+
+Search results respect note visibility and sharing permissions:
+
+### Private notes
+
+Only searchable by the note owner:
+
+```prisma schema.prisma
+model Note {
+  visibility  Visibility @default(Private)
+  ownerId     Int
+  owner       User       @relation("Owner", fields: [ownerId], references: [id])
+}
+```
+
+### Shared notes
+
+Searchable by users with access through `SharedStatus`:
+
+```prisma schema.prisma
+model SharedStatus {
+  sharedWithId Int
+  noteId       Int
+  sharedWith   User @relation("SharedWith", fields: [sharedWithId], references: [id])
+  note         Note @relation(fields: [noteId], references: [id])
+}
+```
+
+### Public notes
+
+Searchable by all authenticated users:
+
+```prisma schema.prisma
+model Note {
+  visibility  Visibility @default(Private)  // When set to Public
+}
+```
+
+<Note>
+Search queries never return results for notes you don't have permission to access.
+</Note>
+
+## Search features
+
+<CardGroup cols={2}>
+  <Card title="Real-time results" icon="bolt">
+    See results as you type without delays
+  </Card>
+  <Card title="Highlight matches" icon="highlighter">
+    Visual highlighting of search terms in content
+  </Card>
+  <Card title="Clear function" icon="xmark">
+    Quickly remove search highlights
+  </Card>
+  <Card title="Context-aware" icon="book-open">
+    See surrounding content for each match
+  </Card>
+</CardGroup>
+
+## Feature overview
+
+The search system is featured prominently in the application:
+
+```typescript data.tsx
+{
+  Icon: InputIcon,
+  name: 'Full-text Search',
+  description:
+    'Find any note or document instantly with powerful search across all content.',
+  href: '/',
+  cta: 'Learn more',
+  background: <FullTextSearchBackground />,
+  className: 'lg:col-start-1 lg:col-end-2 lg:row-start-1 lg:row-end-3',
+  done: true,
+}
+```
+
+## Search UI component
+
+The search interface is contextual and accessible:
+
+```typescript
+const { editor } = useEditorContext()
+```
+
+By using the editor context, search functionality is available wherever the editor is active, ensuring a seamless experience.
+
+## Best practices
+
+### Clearing search on edit
+
+Always clear search highlights when users start editing to avoid confusion:
+
+```typescript
+const handleUpdate = () => {
+  // Save changes
+  onChange(editor.getJSON())
+  
+  // Clear search highlights
+  editor.commands.clearSearch()
+  
+  // Update collaboration state
+  // ...
+}
+```
+
+### Responsive search
+
+Debounce search queries for better performance with large note collections:
+
+```typescript
+const onChangeHandler = (text: string) => {
+  setSearchText(text)
+  
+  // Immediate highlight in current note
+  editor.commands.search(text)
+  
+  // Debounced search across all notes
+  debouncedGlobalSearch(text)
+}
+```
+
+### Search result relevance
+
+Prioritize results by:
+1. **Exact title matches**: Highest relevance
+2. **Title partial matches**: High relevance
+3. **Description matches**: Medium relevance
+4. **Content matches**: Lower relevance, but show context
+
+<Tip>
+Use specific keywords for better results. The search system works best with terms of 3 or more characters.
+</Tip>
+
+## Editor context
+
+The search component relies on the editor context to access editor commands:
+
+```typescript search.tsx
+const { editor } = useEditorContext()
+
+useEffect(() => {
+  console.log('@contenct : ', editor)
+}, [editor])
+```
+
+This ensures search functionality is available as soon as the editor is initialized.
+
+## Use cases
+
+### Find specific content
+
+Search for technical terms, code snippets, or specific phrases within your notes.
+
+### Locate notes by topic
+
+Use keywords in titles and descriptions to quickly navigate to related notes.
+
+### Research and reference
+
+Find all notes mentioning a particular concept or project for research purposes.
+
+### Collaboration
+
+Help team members find shared notes by searching for project names or tags.

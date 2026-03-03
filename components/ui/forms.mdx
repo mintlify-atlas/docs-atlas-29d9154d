@@ -1,0 +1,568 @@
+---
+title: Form Components
+description: Enhanced form inputs with animations and special features
+---
+
+## Overview
+
+Noteverse includes a custom Input component with hover effects, password visibility toggle, and Framer Motion animations.
+
+## Input Component
+
+An enhanced input field with animated border glow effect.
+
+### Import
+
+```tsx
+import { Input } from '@/components/ui/Input'
+```
+
+### Props
+
+<ParamField path="type" type="string" default="text">
+  Input type (text, email, password, number, etc.)
+</ParamField>
+
+<ParamField path="className" type="string" optional>
+  Additional CSS classes
+</ParamField>
+
+<ParamField path="...props" type="React.InputHTMLAttributes<HTMLInputElement>">
+  All standard HTML input attributes
+</ParamField>
+
+### Basic Usage
+
+<CodeGroup>
+```tsx Text Input
+import { Input } from '@/components/ui/Input'
+
+export default function Form() {
+  return (
+    <div className="space-y-2">
+      <label htmlFor="name">Name</label>
+      <Input
+        id="name"
+        type="text"
+        placeholder="Enter your name"
+      />
+    </div>
+  )
+}
+```
+
+```tsx Email Input
+import { Input } from '@/components/ui/Input'
+
+export default function Form() {
+  return (
+    <div className="space-y-2">
+      <label htmlFor="email">Email</label>
+      <Input
+        id="email"
+        type="email"
+        placeholder="you@example.com"
+        required
+      />
+    </div>
+  )
+}
+```
+
+```tsx Controlled Input
+import { Input } from '@/components/ui/Input'
+import { useState } from 'react'
+
+export default function Form() {
+  const [value, setValue] = useState('')
+  
+  return (
+    <Input
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      placeholder="Type something..."
+    />
+  )
+}
+```
+</CodeGroup>
+
+## Password Input
+
+The Input component includes built-in password visibility toggle.
+
+### Features
+
+<Tabs>
+  <Tab title="Toggle Visibility">
+    Eye icon button to show/hide password:
+    
+    ```tsx
+    <Input
+      type="password"
+      placeholder="Enter password"
+    />
+    ```
+    
+    Automatically includes:
+    - Eye icon to show password
+    - EyeOff icon to hide password
+    - Positioned absolutely on the right side
+  </Tab>
+  
+  <Tab title="Focus Management">
+    Maintains cursor position when toggling:
+    
+    ```tsx
+    const showPasswordHandler = (e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setShowPassword(!showPassword)
+
+      if (ref && typeof ref === 'object' && ref.current) {
+        ref.current.focus()
+        const length = ref.current.value.length
+        ref.current.selectionStart = ref.current.selectionEnd = length
+      }
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Implementation">
+    ```tsx
+    const [showPassword, setShowPassword] = useState(false)
+    
+    <input
+      type={type === 'password' ? (showPassword ? 'text' : 'password') : type}
+      // ... other props
+    />
+    
+    {type === 'password' && (
+      <Button
+        type="button"
+        className="absolute right-1.5 top-[7px]"
+        onClick={showPasswordHandler}
+      >
+        {showPassword ? (
+          <EyeOff className="text-gray-600 h-5 w-5" />
+        ) : (
+          <Eye className="text-gray-600 h-5 w-5" />
+        )}
+      </Button>
+    )}
+    ```
+  </Tab>
+</Tabs>
+
+### Password Input Example
+
+```tsx
+import { Input } from '@/components/ui/Input'
+import { useState } from 'react'
+
+export default function LoginForm() {
+  const [password, setPassword] = useState('')
+  
+  return (
+    <div className="space-y-2">
+      <label htmlFor="password">Password</label>
+      <Input
+        id="password"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="Enter your password"
+      />
+    </div>
+  )
+}
+```
+
+## Hover Animation
+
+The Input component features a radial gradient hover effect using Framer Motion.
+
+### Implementation
+
+<CodeGroup>
+```tsx Motion Wrapper
+import { motion, useMotionTemplate, useMotionValue } from 'framer-motion'
+
+const radius = 100 // Radius of hover effect
+const [visible, setVisible] = useState(false)
+const mouseX = useMotionValue(0)
+const mouseY = useMotionValue(0)
+
+function handleMouseMove({ currentTarget, clientX, clientY }: any) {
+  let { left, top } = currentTarget.getBoundingClientRect()
+  mouseX.set(clientX - left)
+  mouseY.set(clientY - top)
+}
+
+<motion.div
+  style={{
+    background: useMotionTemplate`
+      radial-gradient(
+        ${visible ? radius + 'px' : '0px'} circle at ${mouseX}px ${mouseY}px,
+        var(--blue-500),
+        transparent 80%
+      )
+    `,
+  }}
+  onMouseMove={handleMouseMove}
+  onMouseEnter={() => setVisible(true)}
+  onMouseLeave={() => setVisible(false)}
+  className="p-[2px] rounded-lg transition duration-300 group/input relative"
+>
+  <input />
+</motion.div>
+```
+
+```tsx CSS Variables
+:root {
+  --blue-500: rgba(59, 130, 246, 0.5);
+}
+
+.dark {
+  --blue-500: rgba(96, 165, 250, 0.5);
+}
+```
+</CodeGroup>
+
+### Customizing the Effect
+
+<Tabs>
+  <Tab title="Radius Size">
+    Change the size of the hover glow:
+    
+    ```tsx
+    const radius = 150 // Larger effect
+    const radius = 50  // Smaller effect
+    ```
+  </Tab>
+  
+  <Tab title="Color">
+    Use different CSS variable:
+    
+    ```css
+    :root {
+      --accent-glow: rgba(168, 85, 247, 0.5); /* Purple */
+    }
+    ```
+    
+    ```tsx
+    radial-gradient(
+      ${visible ? radius + 'px' : '0px'} circle at ${mouseX}px ${mouseY}px,
+      var(--accent-glow),
+      transparent 80%
+    )
+    ```
+  </Tab>
+  
+  <Tab title="Transition">
+    Adjust animation speed:
+    
+    ```tsx
+    <motion.div
+      className="transition duration-500" // Slower
+    >
+    ```
+  </Tab>
+</Tabs>
+
+## Styling
+
+The Input component uses Tailwind CSS with custom classes:
+
+```tsx
+className={cn(
+  'flex h-10 w-full border',
+  'bg-gray-50 dark:bg-zinc-800',
+  'text-black dark:text-white',
+  'shadow-input rounded-md px-3 py-2 text-sm',
+  'file:border-0 file:bg-transparent file:text-sm file:font-medium',
+  'placeholder:text-neutral-400 dark:placeholder-text-neutral-600',
+  'focus-visible:outline-none focus-visible:ring-[2px]',
+  'focus-visible:ring-neutral-400 dark:focus-visible:ring-neutral-600',
+  'disabled:cursor-not-allowed disabled:opacity-50',
+  'dark:shadow-[0px_0px_1px_1px_var(--neutral-700)]',
+  'group-hover/input:shadow-none transition duration-400',
+  type === 'password' && 'pr-10',
+  className,
+)}
+```
+
+### Custom Styling
+
+<CodeGroup>
+```tsx Custom Classes
+<Input
+  className="border-blue-500 focus-visible:ring-blue-500"
+  placeholder="Custom styled"
+/>
+```
+
+```tsx Larger Input
+<Input
+  className="h-12 text-base"
+  placeholder="Larger input"
+/>
+```
+
+```tsx Rounded Variants
+<Input
+  className="rounded-full"
+  placeholder="Fully rounded"
+/>
+```
+</CodeGroup>
+
+## Form Integration
+
+### With React Hook Form
+
+```tsx
+import { Input } from '@/components/ui/Input'
+import { useForm } from 'react-hook-form'
+
+type FormData = {
+  email: string
+  password: string
+}
+
+export default function LoginForm() {
+  const { register, handleSubmit, formState: { errors } } = useForm<FormData>()
+  
+  const onSubmit = (data: FormData) => {
+    console.log(data)
+  }
+  
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div>
+        <label htmlFor="email">Email</label>
+        <Input
+          id="email"
+          type="email"
+          {...register('email', { required: 'Email is required' })}
+        />
+        {errors.email && (
+          <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+        )}
+      </div>
+      
+      <div>
+        <label htmlFor="password">Password</label>
+        <Input
+          id="password"
+          type="password"
+          {...register('password', { required: 'Password is required' })}
+        />
+        {errors.password && (
+          <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
+        )}
+      </div>
+      
+      <button type="submit">Submit</button>
+    </form>
+  )
+}
+```
+
+### With Formik
+
+```tsx
+import { Input } from '@/components/ui/Input'
+import { Formik, Form, Field } from 'formik'
+
+export default function SignupForm() {
+  return (
+    <Formik
+      initialValues={{ email: '', password: '' }}
+      onSubmit={(values) => console.log(values)}
+    >
+      {({ errors, touched }) => (
+        <Form className="space-y-4">
+          <div>
+            <label htmlFor="email">Email</label>
+            <Field
+              as={Input}
+              id="email"
+              name="email"
+              type="email"
+            />
+            {errors.email && touched.email && (
+              <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+            )}
+          </div>
+          
+          <div>
+            <label htmlFor="password">Password</label>
+            <Field
+              as={Input}
+              id="password"
+              name="password"
+              type="password"
+            />
+          </div>
+          
+          <button type="submit">Submit</button>
+        </Form>
+      )}
+    </Formik>
+  )
+}
+```
+
+## Other Form Components
+
+Noteverse uses shadcn/ui for other form components:
+
+### Textarea
+
+```tsx
+import { Textarea } from '@/components/ui/textarea'
+
+<Textarea 
+  placeholder="Enter your message" 
+  rows={5}
+/>
+```
+
+### Select
+
+```tsx
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+
+<Select>
+  <SelectTrigger>
+    <SelectValue placeholder="Select an option" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="option1">Option 1</SelectItem>
+    <SelectItem value="option2">Option 2</SelectItem>
+    <SelectItem value="option3">Option 3</SelectItem>
+  </SelectContent>
+</Select>
+```
+
+### Checkbox
+
+```tsx
+import { Checkbox } from '@/components/ui/checkbox'
+
+<div className="flex items-center space-x-2">
+  <Checkbox id="terms" />
+  <label htmlFor="terms">Accept terms and conditions</label>
+</div>
+```
+
+### Radio Group
+
+```tsx
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+
+<RadioGroup defaultValue="option1">
+  <div className="flex items-center space-x-2">
+    <RadioGroupItem value="option1" id="option1" />
+    <label htmlFor="option1">Option 1</label>
+  </div>
+  <div className="flex items-center space-x-2">
+    <RadioGroupItem value="option2" id="option2" />
+    <label htmlFor="option2">Option 2</label>
+  </div>
+</RadioGroup>
+```
+
+## TypeScript Interface
+
+```tsx
+export interface InputProps
+  extends React.InputHTMLAttributes<HTMLInputElement> {}
+
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type, ...props }, ref) => {
+    // Implementation
+  },
+)
+Input.displayName = 'Input'
+```
+
+## Accessibility
+
+<AccordionGroup>
+  <Accordion title="Labels">
+    Always associate labels with inputs:
+    
+    ```tsx
+    <label htmlFor="email">Email</label>
+    <Input id="email" type="email" />
+    ```
+  </Accordion>
+  
+  <Accordion title="Error Messages">
+    Use ARIA attributes for error states:
+    
+    ```tsx
+    <Input
+      aria-invalid={!!error}
+      aria-describedby={error ? 'error-message' : undefined}
+    />
+    {error && (
+      <p id="error-message" className="text-red-500">
+        {error}
+      </p>
+    )}
+    ```
+  </Accordion>
+  
+  <Accordion title="Required Fields">
+    Mark required fields:
+    
+    ```tsx
+    <label htmlFor="email">
+      Email <span className="text-red-500">*</span>
+    </label>
+    <Input id="email" type="email" required />
+    ```
+  </Accordion>
+  
+  <Accordion title="Password Visibility Button">
+    The toggle button includes proper event handling:
+    
+    ```tsx
+    <Button
+      type="button" // Prevents form submission
+      onClick={showPasswordHandler}
+      onMouseDown={(e) => e.preventDefault()} // Prevents focus loss
+    >
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Note>
+  - Use `type="email"` for email inputs to get browser validation
+  - Use `type="tel"` for phone numbers
+  - Use `type="number"` with `min` and `max` for numeric inputs
+  - Always provide placeholder text
+  - Use appropriate `autocomplete` attributes
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Buttons" icon="hand-pointer" href="/components/ui/buttons">
+    Learn about button components
+  </Card>
+  <Card title="Dialogs" icon="window" href="/components/ui/dialogs">
+    Explore modal components
+  </Card>
+</CardGroup>

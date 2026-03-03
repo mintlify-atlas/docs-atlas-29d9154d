@@ -1,0 +1,381 @@
+---
+title: Installation
+description: Complete installation and setup guide for developers
+---
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed on your system:
+
+- **Node.js** >= 18.x
+- **npm** or **bun** (recommended) as package manager
+- **PostgreSQL** database
+- **Git** for version control
+
+<Warning>
+  While npm is supported, Noteverse is optimized for Bun. Some features may work best with Bun as the package manager.
+</Warning>
+
+## Clone the repository
+
+Start by cloning the Noteverse repository to your local machine:
+
+```bash
+git clone https://github.com/your-username/noteverse-frontend.git
+cd noteverse-frontend
+```
+
+## Install dependencies
+
+Install the required packages using your preferred package manager:
+
+<CodeGroup>
+
+```bash npm
+npm install
+```
+
+```bash bun
+bun install
+```
+
+```bash yarn
+yarn install
+```
+
+```bash pnpm
+pnpm install
+```
+
+</CodeGroup>
+
+<Info>
+  The `postinstall` script will automatically run `prisma generate` after dependencies are installed.
+</Info>
+
+## Environment configuration
+
+Create a `.env.local` file in the root directory with the following environment variables:
+
+```env .env.local
+# API Configuration
+NEXT_PUBLIC_API_URL=your_api_url
+NEXT_PUBLIC_SOCKET_URL=your_socket_url
+NEXT_PUBLIC_UPLOAD_URL=your_upload_url
+
+# Authentication
+NEXTAUTH_URL=your_auth_url
+NEXTAUTH_SECRET=your_auth_secret
+
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/noteverse
+```
+
+### Variable descriptions
+
+<AccordionGroup>
+  <Accordion title="NEXT_PUBLIC_API_URL">
+    The base URL for your API endpoints. In development, this is typically `http://localhost:3000/api`.
+  </Accordion>
+
+  <Accordion title="NEXT_PUBLIC_SOCKET_URL">
+    The URL for Socket.IO real-time connections. Must be accessible from the client browser.
+  </Accordion>
+
+  <Accordion title="NEXT_PUBLIC_UPLOAD_URL">
+    The endpoint URL for file uploads, typically using Vercel Blob storage.
+  </Accordion>
+
+  <Accordion title="NEXTAUTH_URL">
+    The canonical URL of your site for NextAuth.js. In development: `http://localhost:3000`.
+  </Accordion>
+
+  <Accordion title="NEXTAUTH_SECRET">
+    A random string used to encrypt JWT tokens. Generate one with: `openssl rand -base64 32`
+  </Accordion>
+
+  <Accordion title="DATABASE_URL">
+    PostgreSQL connection string in the format: `postgresql://USER:PASSWORD@HOST:PORT/DATABASE`
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+  For Google OAuth, you'll also need to configure `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in your environment variables.
+</Tip>
+
+## Database setup
+
+Noteverse uses Prisma ORM with PostgreSQL. Follow these steps to set up your database:
+
+### Database schema overview
+
+The application uses the following key models:
+
+```prisma schema.prisma
+// User model with authentication
+model User {
+  id                Int            @id @default(autoincrement())
+  email             String         @unique
+  username          String         
+  password          String         
+  authToken         String?       
+  emailVerified     Boolean        @default(false) 
+  verificationToken String?
+  
+  notes           Note[]         @relation("Owner")
+  comments        Comment[]
+  likedNotes      Note[]         @relation("LikesOnNotes")
+  favoriteNotes   Note[]         @relation("FavoritesOnNotes")
+}
+
+// Note model with visibility and collaboration
+model Note {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  data        String?
+  thumbnail   String?
+  views       Int       @default(0)
+  visibility  Visibility @default(Private)
+  
+  owner       User       @relation("Owner", fields: [ownerId], references: [id])
+  tags        Tag[]      @relation("TagsOnNotes")
+  comments    Comment[]  @relation("CommentsOnNote")
+  likes       User[]     @relation("LikesOnNotes")
+  favorites   User[]     @relation("FavoritesOnNotes")
+}
+```
+
+### Run migrations
+
+Apply the database schema to your PostgreSQL instance:
+
+<CodeGroup>
+
+```bash Development
+npx prisma migrate dev
+```
+
+```bash Production
+npx prisma migrate deploy
+```
+
+</CodeGroup>
+
+### Generate Prisma Client
+
+Generate the Prisma Client for type-safe database access:
+
+```bash
+npx prisma generate
+```
+
+<Note>
+  This command runs automatically during `npm install` via the `postinstall` script.
+</Note>
+
+### Seed the database (optional)
+
+Populate your database with sample data:
+
+```bash
+npm run seed
+```
+
+## Development server
+
+Start the development server with real-time Socket.IO support:
+
+<CodeGroup>
+
+```bash npm
+npm run dev
+```
+
+```bash bun
+bun dev
+```
+
+</CodeGroup>
+
+The application will be available at `http://localhost:3000`.
+
+<Info>
+  The `dev` script runs `node server.mjs` which includes both the Next.js server and Socket.IO for real-time features.
+</Info>
+
+## Build for production
+
+Create an optimized production build:
+
+<CodeGroup>
+
+```bash npm
+npm run build
+```
+
+```bash bun
+bun run build
+```
+
+</CodeGroup>
+
+### Start production server
+
+Run the production server:
+
+<CodeGroup>
+
+```bash npm
+npm start
+```
+
+```bash bun
+bun start
+```
+
+</CodeGroup>
+
+## Deployment
+
+### Vercel deployment
+
+Noteverse is optimized for deployment on Vercel:
+
+1. Push your code to GitHub
+2. Import the repository in Vercel
+3. Configure environment variables in Vercel dashboard
+4. Deploy
+
+The `vercel-build` script handles Prisma generation and migrations:
+
+```json package.json
+{
+  "scripts": {
+    "vercel-build": "prisma generate && prisma migrate deploy && next build"
+  }
+}
+```
+
+<Warning>
+  Ensure your `DATABASE_URL` points to a production PostgreSQL instance, not your local database.
+</Warning>
+
+## Available scripts
+
+<ResponseField name="dev" type="command">
+  Starts the development server with Socket.IO support
+</ResponseField>
+
+<ResponseField name="build" type="command">
+  Creates an optimized production build
+</ResponseField>
+
+<ResponseField name="start" type="command">
+  Starts the production server
+</ResponseField>
+
+<ResponseField name="postinstall" type="command">
+  Automatically generates Prisma Client after installing dependencies
+</ResponseField>
+
+<ResponseField name="vercel-build" type="command">
+  Prepares the application for Vercel deployment with database migrations
+</ResponseField>
+
+<ResponseField name="seed" type="command">
+  Seeds the database with sample data
+</ResponseField>
+
+## Technology stack
+
+### Core technologies
+
+- **Next.js 14**: React framework with App Router
+- **TypeScript**: Type-safe development
+- **Prisma**: Database ORM with type safety
+- **PostgreSQL**: Relational database
+
+### UI and styling
+
+- **Tailwind CSS**: Utility-first CSS framework
+- **Radix UI**: Unstyled, accessible component primitives
+- **Ant Design**: Enterprise-grade component library
+- **Lucide React**: Beautiful icon library
+- **Framer Motion**: Production-ready animations
+
+### Features and integrations
+
+- **Novel.sh**: Notion-style WYSIWYG editor built on TipTap
+- **Socket.IO**: Real-time bidirectional communication
+- **NextAuth.js**: Authentication for Next.js
+- **Vercel Blob**: Edge-compatible blob storage
+- **React Hook Form + Zod**: Form management and validation
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Prisma Client errors">
+    If you encounter Prisma Client errors, try regenerating the client:
+    
+    ```bash
+    npx prisma generate
+    ```
+    
+    Then restart your development server.
+  </Accordion>
+
+  <Accordion title="Database connection issues">
+    Verify your `DATABASE_URL` in `.env.local` is correct and your PostgreSQL server is running:
+    
+    ```bash
+    npx prisma db push
+    ```
+  </Accordion>
+
+  <Accordion title="Socket.IO not connecting">
+    Ensure `NEXT_PUBLIC_SOCKET_URL` is set correctly and accessible from the client. Check browser console for connection errors.
+  </Accordion>
+
+  <Accordion title="Module resolution errors">
+    Clear your package manager cache and reinstall:
+    
+    ```bash
+    rm -rf node_modules package-lock.json
+    npm install
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart guide"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Learn how to create your first note and start collaborating
+  </Card>
+  <Card
+    title="API reference"
+    icon="code"
+    href="/api/reference"
+  >
+    Explore the available API endpoints
+  </Card>
+  <Card
+    title="Database schema"
+    icon="database"
+    href="/guide/database-schema"
+  >
+    Deep dive into the Prisma schema and relationships
+  </Card>
+  <Card
+    title="Contributing"
+    icon="github"
+    href="/contributing"
+  >
+    Learn how to contribute to Noteverse
+  </Card>
+</CardGroup>

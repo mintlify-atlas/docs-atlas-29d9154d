@@ -1,0 +1,524 @@
+---
+title: Slash Commands
+description: Quick formatting commands triggered by typing / in the editor
+---
+
+## Overview
+
+Slash commands provide a quick way to insert and format content. Type `/` anywhere in the editor to open the command menu.
+
+## Implementation
+
+Slash commands are implemented using Novel's `Command` extension:
+
+```tsx
+import { Command, renderItems, createSuggestionItems } from 'novel/extensions'
+
+export const slashCommand = Command.configure({
+  suggestion: {
+    items: ({ editor }) => {
+      const isCurrentUserActive =
+        editor.storage.multipleCarets?.isCurrentUserActive || false
+
+      // Only show suggestions if user is active
+      return isCurrentUserActive ? suggestionItems : []
+    },
+    render: renderItems,
+  },
+})
+```
+
+<Note>
+  Commands are only shown when the current user is active in collaborative mode.
+</Note>
+
+## Available Commands
+
+### Text
+
+Convert to plain text paragraph.
+
+<ParamField path="Title" type="string">
+  Text
+</ParamField>
+<ParamField path="Description" type="string">
+  Just start typing with plain text.
+</ParamField>
+<ParamField path="Search terms" type="string[]">
+  p, paragraph
+</ParamField>
+<ParamField path="Icon" type="component">
+  `<Text size={18} />`
+</ParamField>
+
+```tsx
+editor.chain()
+  .focus()
+  .deleteRange(range)
+  .toggleNode('paragraph', 'paragraph')
+  .run()
+```
+
+### To-do List
+
+Create interactive checkboxes for task tracking.
+
+<ParamField path="Title" type="string">
+  To-do List
+</ParamField>
+<ParamField path="Description" type="string">
+  Track tasks with a to-do list.
+</ParamField>
+<ParamField path="Search terms" type="string[]">
+  todo, task, list, check, checkbox
+</ParamField>
+<ParamField path="Icon" type="component">
+  `<CheckSquare size={18} />`
+</ParamField>
+
+```tsx
+editor.chain()
+  .focus()
+  .deleteRange(range)
+  .toggleTaskList()
+  .run()
+```
+
+### Heading 1
+
+Large section heading.
+
+<ParamField path="Title" type="string">
+  Heading 1
+</ParamField>
+<ParamField path="Description" type="string">
+  Big section heading.
+</ParamField>
+<ParamField path="Search terms" type="string[]">
+  title, big, large
+</ParamField>
+<ParamField path="Icon" type="component">
+  `<Heading1 size={18} />`
+</ParamField>
+
+```tsx
+editor.chain()
+  .focus()
+  .deleteRange(range)
+  .setNode('heading', { level: 1 })
+  .run()
+```
+
+### Heading 2
+
+Medium section heading.
+
+<ParamField path="Title" type="string">
+  Heading 2
+</ParamField>
+<ParamField path="Description" type="string">
+  Medium section heading.
+</ParamField>
+<ParamField path="Search terms" type="string[]">
+  subtitle, medium
+</ParamField>
+<ParamField path="Icon" type="component">
+  `<Heading2 size={18} />`
+</ParamField>
+
+```tsx
+editor.chain()
+  .focus()
+  .deleteRange(range)
+  .setNode('heading', { level: 2 })
+  .run()
+```
+
+### Heading 3
+
+Small section heading.
+
+<ParamField path="Title" type="string">
+  Heading 3
+</ParamField>
+<ParamField path="Description" type="string">
+  Small section heading.
+</ParamField>
+<ParamField path="Search terms" type="string[]">
+  subtitle, small
+</ParamField>
+<ParamField path="Icon" type="component">
+  `<Heading3 size={18} />`
+</ParamField>
+
+```tsx
+editor.chain()
+  .focus()
+  .deleteRange(range)
+  .setNode('heading', { level: 3 })
+  .run()
+```
+
+### Bullet List
+
+Create unordered list with bullets.
+
+<ParamField path="Title" type="string">
+  Bullet List
+</ParamField>
+<ParamField path="Description" type="string">
+  Create a simple bullet list.
+</ParamField>
+<ParamField path="Search terms" type="string[]">
+  unordered, point
+</ParamField>
+<ParamField path="Icon" type="component">
+  `<List size={18} />`
+</ParamField>
+
+```tsx
+editor.chain()
+  .focus()
+  .deleteRange(range)
+  .toggleBulletList()
+  .run()
+```
+
+### Numbered List
+
+Create ordered list with numbers.
+
+<ParamField path="Title" type="string">
+  Numbered List
+</ParamField>
+<ParamField path="Description" type="string">
+  Create a list with numbering.
+</ParamField>
+<ParamField path="Search terms" type="string[]">
+  ordered
+</ParamField>
+<ParamField path="Icon" type="component">
+  `<ListOrdered size={18} />`
+</ParamField>
+
+```tsx
+editor.chain()
+  .focus()
+  .deleteRange(range)
+  .toggleOrderedList()
+  .run()
+```
+
+### Quote
+
+Insert blockquote for citations.
+
+<ParamField path="Title" type="string">
+  Quote
+</ParamField>
+<ParamField path="Description" type="string">
+  Capture a quote.
+</ParamField>
+<ParamField path="Search terms" type="string[]">
+  blockquote
+</ParamField>
+<ParamField path="Icon" type="component">
+  `<TextQuote size={18} />`
+</ParamField>
+
+```tsx
+editor.chain()
+  .focus()
+  .deleteRange(range)
+  .toggleNode('paragraph', 'paragraph')
+  .toggleBlockquote()
+  .run()
+```
+
+### Code
+
+Insert code block with syntax highlighting.
+
+<ParamField path="Title" type="string">
+  Code
+</ParamField>
+<ParamField path="Description" type="string">
+  Capture a code snippet.
+</ParamField>
+<ParamField path="Search terms" type="string[]">
+  codeblock
+</ParamField>
+<ParamField path="Icon" type="component">
+  `<Code size={18} />`
+</ParamField>
+
+```tsx
+editor.chain()
+  .focus()
+  .deleteRange(range)
+  .toggleCodeBlock()
+  .run()
+```
+
+### Image
+
+Upload image from computer.
+
+<ParamField path="Title" type="string">
+  Image
+</ParamField>
+<ParamField path="Description" type="string">
+  Upload an image from your computer.
+</ParamField>
+<ParamField path="Search terms" type="string[]">
+  photo, picture, media
+</ParamField>
+<ParamField path="Icon" type="component">
+  `<ImageIcon size={18} />`
+</ParamField>
+
+<CodeGroup>
+```tsx Command Implementation
+{
+  title: 'Image',
+  command: ({ editor, range }) => {
+    editor.chain().focus().deleteRange(range).run()
+    
+    // Create file input
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.onchange = async () => {
+      if (input.files?.length) {
+        const file = input.files[0]
+        const pos = editor.view.state.selection.from
+        uploadFn(file, editor.view, pos)
+      }
+    }
+    input.click()
+  },
+}
+```
+
+```tsx Upload Function
+// Implement in image-upload.ts
+export const uploadFn = (file: File, view: EditorView, pos: number) => {
+  // Your upload logic here
+}
+```
+</CodeGroup>
+
+### Youtube
+
+Embed YouTube video.
+
+<ParamField path="Title" type="string">
+  Youtube
+</ParamField>
+<ParamField path="Description" type="string">
+  Embed a Youtube video.
+</ParamField>
+<ParamField path="Search terms" type="string[]">
+  video, youtube, embed
+</ParamField>
+<ParamField path="Icon" type="component">
+  `<Youtube size={18} />`
+</ParamField>
+
+<Tabs>
+  <Tab title="Implementation">
+    ```tsx
+    const videoLink = prompt('Please enter Youtube Video Link')
+    const ytregex = /^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)([\w\-]+)(\S+)?$/
+
+    if (ytregex.test(videoLink)) {
+      editor.chain()
+        .focus()
+        .deleteRange(range)
+        .setYoutubeVideo({ src: videoLink })
+        .run()
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Supported URLs">
+    - `https://www.youtube.com/watch?v=VIDEO_ID`
+    - `https://youtu.be/VIDEO_ID`
+    - `https://www.youtube.com/embed/VIDEO_ID`
+    - `https://m.youtube.com/watch?v=VIDEO_ID`
+  </Tab>
+</Tabs>
+
+### Twitter
+
+Embed tweet.
+
+<ParamField path="Title" type="string">
+  Twitter
+</ParamField>
+<ParamField path="Description" type="string">
+  Embed a Tweet.
+</ParamField>
+<ParamField path="Search terms" type="string[]">
+  twitter, embed
+</ParamField>
+<ParamField path="Icon" type="component">
+  `<Twitter size={18} />`
+</ParamField>
+
+<Tabs>
+  <Tab title="Implementation">
+    ```tsx
+    const tweetLink = prompt('Please enter Twitter Link')
+    const tweetRegex = /^https?:\/\/(www\.)?x\.com\/([a-zA-Z0-9_]{1,15})(\/status\/(\d+))?(\/\S*)?$/
+
+    if (tweetRegex.test(tweetLink)) {
+      editor.chain()
+        .focus()
+        .deleteRange(range)
+        .setTweet({ src: tweetLink })
+        .run()
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Supported URLs">
+    - `https://x.com/username/status/123456789`
+    - `https://www.x.com/username/status/123456789`
+    - Both twitter.com and x.com domains
+  </Tab>
+</Tabs>
+
+## Creating Custom Commands
+
+Add your own slash commands to `suggestionItems`:
+
+```tsx
+import { createSuggestionItems } from 'novel/extensions'
+import { MyIcon } from 'lucide-react'
+
+export const suggestionItems = createSuggestionItems([
+  // ... existing commands
+  {
+    title: 'My Custom Command',
+    description: 'Does something cool',
+    searchTerms: ['custom', 'special'],
+    icon: <MyIcon size={18} />,
+    command: ({ editor, range }) => {
+      editor.chain()
+        .focus()
+        .deleteRange(range)
+        // Your custom command logic
+        .run()
+    },
+  },
+])
+```
+
+## Command Menu UI
+
+The command menu is styled with Tailwind:
+
+```tsx
+<EditorCommand className="z-20 h-auto max-h-[330px] overflow-y-auto rounded-md border border-muted bg-background px-1 py-2 shadow-md transition-all">
+  <EditorCommandEmpty className="px-2 text-muted-foreground">
+    No results
+  </EditorCommandEmpty>
+  <EditorCommandList>
+    {suggestionItems.map((item) => (
+      <EditorCommandItem
+        value={item.title}
+        onCommand={(val) => item.command?.(val)}
+        className="flex w-full items-center space-x-2 rounded-md px-2 py-1 text-left text-sm hover:bg-accent aria-selected:bg-accent"
+        key={item.title}
+      >
+        <div className="flex h-10 w-10 items-center justify-center rounded-md border border-muted bg-background">
+          {item.icon}
+        </div>
+        <div>
+          <p className="font-medium">{item.title}</p>
+          <p className="text-xs text-muted-foreground">{item.description}</p>
+        </div>
+      </EditorCommandItem>
+    ))}
+  </EditorCommandList>
+</EditorCommand>
+```
+
+## Keyboard Navigation
+
+Navigate the command menu with:
+
+- **↑/↓**: Move selection up/down
+- **Enter**: Execute selected command
+- **Esc**: Close menu
+
+Navigation is handled by:
+
+```tsx
+import { handleCommandNavigation } from 'novel/extensions'
+
+editorProps={{
+  handleDOMEvents: {
+    keydown: (_view, event) => handleCommandNavigation(event),
+  },
+}}
+```
+
+## Search and Filtering
+
+Commands are filtered by:
+- Title (case-insensitive)
+- Description
+- Search terms
+
+Example: Typing `/task` will show "To-do List" because it includes "task" in searchTerms.
+
+## TypeScript Types
+
+```tsx
+type SuggestionItem = {
+  title: string
+  description: string
+  searchTerms: string[]
+  icon: React.ReactNode
+  command: (props: {
+    editor: Editor
+    range: Range
+  }) => void
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Keep commands simple">
+    Each command should perform a single, clear action. Complex workflows should be broken into multiple commands.
+  </Accordion>
+  
+  <Accordion title="Use descriptive search terms">
+    Add multiple search terms to make commands easy to find:
+    ```tsx
+    searchTerms: ['todo', 'task', 'list', 'check', 'checkbox']
+    ```
+  </Accordion>
+  
+  <Accordion title="Provide clear descriptions">
+    Descriptions help users understand what each command does before executing it.
+  </Accordion>
+  
+  <Accordion title="Use appropriate icons">
+    Icons from Lucide React provide visual context and improve UX.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Extensions" icon="puzzle-piece" href="/components/editor/extensions">
+    Learn about TipTap extensions
+  </Card>
+  <Card title="Selectors" icon="cursor" href="/components/editor/selectors">
+    Explore bubble menu selectors
+  </Card>
+</CardGroup>

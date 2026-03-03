@@ -1,0 +1,593 @@
+---
+title: Docker Deployment
+description: Deploy Noteverse using Docker containers with full WebSocket support
+---
+
+Docker provides a consistent, portable deployment solution for Noteverse with full support for real-time WebSocket connections. This guide covers building and deploying Noteverse using Docker and Docker Compose.
+
+## Prerequisites
+
+Before starting:
+
+- Docker Engine 20.10+
+- Docker Compose v2.0+
+- 2GB+ available RAM
+- PostgreSQL database (or use Docker Compose setup)
+
+## Quick Start
+
+<Steps>
+  <Step title="Clone Repository">
+    ```bash
+    git clone https://github.com/your-username/noteverse-frontend.git
+    cd noteverse-frontend
+    ```
+  </Step>
+  
+  <Step title="Configure Environment">
+    Create `.env` file with required variables:
+    ```bash
+    cp .env.example .env
+    ```
+  </Step>
+  
+  <Step title="Build and Run">
+    ```bash
+    docker compose up -d
+    ```
+  </Step>
+  
+  <Step title="Access Application">
+    Open http://localhost:3000 in your browser
+  </Step>
+</Steps>
+
+## Dockerfile Overview
+
+Noteverse uses a **multi-stage Dockerfile** for optimized production images:
+
+```dockerfile
+# syntax=docker.io/docker/dockerfile:1
+
+FROM node:18-alpine AS base
+
+# Install dependencies only when needed
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* prisma emails ./
+RUN \
+  if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
+  elif [ -f package-lock.json ]; then npm ci; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
+  else echo "Lockfile not found." && exit 1; \
+  fi
+
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+RUN \
+  if [ -f yarn.lock ]; then yarn run build; \
+  elif [ -f package-lock.json ]; then npm run build; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run build; \
+  else echo "Lockfile not found." && exit 1; \
+  fi
+
+# Production image, copy all the files and run next
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]
+```
+
+### Build Stages Explained
+
+<Steps>
+  <Step title="Stage 1: Base">
+    Uses Node.js 18 Alpine for minimal image size
+  </Step>
+  
+  <Step title="Stage 2: Dependencies">
+    Installs production and development dependencies with package manager auto-detection
+  </Step>
+  
+  <Step title="Stage 3: Builder">
+    Builds the Next.js application with all assets
+  </Step>
+  
+  <Step title="Stage 4: Runner">
+    Creates minimal production image with only necessary files
+  </Step>
+</Steps>
+
+<Note>
+The multi-stage build reduces final image size by ~70% compared to single-stage builds.
+</Note>
+
+## Building the Docker Image
+
+### Standard Build
+
+```bash
+docker build -t noteverse:latest .
+```
+
+### With Build Arguments
+
+```bash
+docker build \
+  --build-arg NODE_ENV=production \
+  -t noteverse:latest \
+  .
+```
+
+### For Different Platforms
+
+```bash
+# For ARM64 (Apple Silicon, AWS Graviton)
+docker build --platform linux/arm64 -t noteverse:latest .
+
+# For AMD64 (most cloud providers)
+docker build --platform linux/amd64 -t noteverse:latest .
+
+# Multi-platform build
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -t noteverse:latest \
+  --push \
+  .
+```
+
+## Docker Compose Setup
+
+Create a `docker-compose.yml` file for complete stack deployment:
+
+```yaml
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://noteverse:password@db:5432/noteverse
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
+      - NEXT_PUBLIC_SOCKET_URL=http://localhost:3000
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - noteverse-network
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=noteverse
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=noteverse
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U noteverse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - noteverse-network
+
+volumes:
+  postgres-data:
+
+networks:
+  noteverse-network:
+    driver: bridge
+```
+
+### Start Services
+
+<CodeGroup>
+```bash Development
+# Start all services
+docker compose up -d
+
+# View logs
+docker compose logs -f app
+
+# Stop services
+docker compose down
+```
+
+```bash Production
+# Start with production settings
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+# View logs (last 100 lines)
+docker compose logs --tail=100 -f app
+
+# Restart app service
+docker compose restart app
+
+# Stop and remove volumes
+docker compose down -v
+```
+</CodeGroup>
+
+## Environment Configuration
+
+Create a `.env` file in your project root:
+
+```bash
+# Database
+DATABASE_URL="postgresql://noteverse:password@db:5432/noteverse"
+
+# Authentication
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-generated-secret"
+
+# Application URLs
+NEXT_PUBLIC_API_URL="http://localhost:3000"
+NEXT_PUBLIC_SOCKET_URL="http://localhost:3000"
+NEXT_PUBLIC_UPLOAD_URL="http://localhost:3000/uploads"
+
+# Node Environment
+NODE_ENV="production"
+
+# Server Configuration
+PORT=3000
+HOSTNAME="0.0.0.0"
+```
+
+<Warning>
+For production deployments, always use secure passwords and generate strong secrets:
+```bash
+openssl rand -base64 32
+```
+</Warning>
+
+## Port Mappings
+
+The default configuration exposes these ports:
+
+| Service | Internal Port | External Port | Description |
+|---------|--------------|---------------|-------------|
+| App | 3000 | 3000 | Next.js + Socket.IO server |
+| PostgreSQL | 5432 | 5432 | Database (optional external) |
+
+### Custom Port Configuration
+
+```yaml
+services:
+  app:
+    ports:
+      - "8080:3000"  # Map to custom external port
+    environment:
+      - PORT=3000     # Internal port stays 3000
+```
+
+## Database Migrations
+
+Run Prisma migrations in the Docker container:
+
+### Initial Migration
+
+```bash
+# Run migrations after starting services
+docker compose exec app npx prisma migrate deploy
+
+# Generate Prisma client
+docker compose exec app npx prisma generate
+```
+
+### Automated Migrations
+
+Update your Dockerfile to run migrations automatically:
+
+```dockerfile
+# Add to Dockerfile before CMD
+RUN npx prisma generate
+CMD npx prisma migrate deploy && node server.js
+```
+
+<Note>
+Automated migrations ensure your database schema is always up-to-date on container startup.
+</Note>
+
+## WebSocket Support
+
+<Note>
+Docker deployments have full WebSocket support for Socket.IO real-time features.
+</Note>
+
+Noteverse's `server.mjs` runs in the container with persistent connections:
+
+```javascript
+// server.mjs runs on port 3000
+const httpServer = createServer(handler)
+const io = new Server(httpServer)
+
+io.on('connection', (socket) => {
+  // Handle real-time events
+  socket.on('registerUser', ({ userId, userName, notesId }, cb) => {
+    // User registration logic
+  })
+  
+  socket.on('contentChanged', ({ notesId, content }) => {
+    socket.to(notesId).emit('contentUpdated', content)
+  })
+})
+```
+
+### Nginx Reverse Proxy Configuration
+
+For production deployments behind Nginx:
+
+```nginx
+upstream noteverse {
+    server localhost:3000;
+}
+
+server {
+    listen 80;
+    server_name noteverse.com;
+
+    location / {
+        proxy_pass http://noteverse;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # WebSocket configuration
+    location /socket.io/ {
+        proxy_pass http://noteverse;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+## Production Deployment
+
+### Cloud Platforms
+
+<Steps>
+  <Step title="Build Image">
+    ```bash
+    docker build -t your-registry.com/noteverse:latest .
+    ```
+  </Step>
+  
+  <Step title="Push to Registry">
+    ```bash
+    docker push your-registry.com/noteverse:latest
+    ```
+  </Step>
+  
+  <Step title="Deploy to Platform">
+    Deploy using your cloud provider's container service:
+    - **AWS ECS/Fargate**
+    - **Google Cloud Run**
+    - **Azure Container Instances**
+    - **DigitalOcean App Platform**
+  </Step>
+</Steps>
+
+### Docker Swarm
+
+```bash
+# Initialize swarm
+docker swarm init
+
+# Deploy stack
+docker stack deploy -c docker-compose.yml noteverse
+
+# Scale services
+docker service scale noteverse_app=3
+```
+
+### Kubernetes
+
+Create Kubernetes deployment:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: noteverse
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: noteverse
+  template:
+    metadata:
+      labels:
+        app: noteverse
+    spec:
+      containers:
+      - name: noteverse
+        image: your-registry.com/noteverse:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: noteverse-secrets
+              key: database-url
+```
+
+## Monitoring and Logs
+
+### View Logs
+
+```bash
+# Real-time logs
+docker compose logs -f app
+
+# Last 100 lines
+docker compose logs --tail=100 app
+
+# Logs with timestamps
+docker compose logs -t app
+```
+
+### Health Checks
+
+Add health check to Docker Compose:
+
+```yaml
+services:
+  app:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+```
+
+### Resource Limits
+
+```yaml
+services:
+  app:
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+```
+
+## Troubleshooting
+
+<CodeGroup>
+```bash Container Won't Start
+# Check container logs
+docker compose logs app
+
+# Inspect container
+docker compose exec app sh
+
+# Check environment variables
+docker compose exec app env | grep DATABASE_URL
+```
+
+```bash Database Connection Failed
+# Verify database is running
+docker compose ps db
+
+# Test database connectivity
+docker compose exec app nc -zv db 5432
+
+# Check database logs
+docker compose logs db
+```
+
+```bash Build Failures
+# Clear build cache
+docker builder prune -a
+
+# Rebuild without cache
+docker compose build --no-cache
+
+# Check disk space
+docker system df
+```
+</CodeGroup>
+
+## Backup and Recovery
+
+### Database Backup
+
+```bash
+# Backup database
+docker compose exec -T db pg_dump -U noteverse noteverse > backup.sql
+
+# Restore database
+docker compose exec -T db psql -U noteverse noteverse < backup.sql
+
+# Automated backup with cron
+0 2 * * * docker compose exec -T db pg_dump -U noteverse noteverse > /backups/noteverse_$(date +\%Y\%m\%d).sql
+```
+
+### Volume Backup
+
+```bash
+# Backup PostgreSQL data volume
+docker run --rm \
+  -v noteverse_postgres-data:/data \
+  -v $(pwd):/backup \
+  alpine tar czf /backup/postgres-backup.tar.gz -C /data .
+
+# Restore volume
+docker run --rm \
+  -v noteverse_postgres-data:/data \
+  -v $(pwd):/backup \
+  alpine tar xzf /backup/postgres-backup.tar.gz -C /data
+```
+
+## Security Best Practices
+
+<Warning>
+Always follow these security practices for production deployments:
+</Warning>
+
+- Use non-root user (already configured in Dockerfile)
+- Set secure environment variables via secrets management
+- Enable SSL/TLS with reverse proxy
+- Regular security updates: `docker compose pull && docker compose up -d`
+- Implement rate limiting and firewall rules
+- Use Docker secrets for sensitive data
+- Regular vulnerability scanning: `docker scan noteverse:latest`
+
+## Next Steps
+
+- Set up automated backups
+- Configure monitoring with Prometheus/Grafana
+- Implement SSL with Let's Encrypt
+- Set up CI/CD pipeline for automated deployments
+
+<Card title="Deployment Overview" icon="book" href="/deployment/overview">
+  Learn about other deployment options and requirements
+</Card>

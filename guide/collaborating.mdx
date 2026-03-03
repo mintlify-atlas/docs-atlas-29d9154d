@@ -1,0 +1,156 @@
+---
+title: Collaborating in real-time
+description: Work together with others on notes in real-time with live updates and cursor tracking
+---
+
+Noteverse enables seamless real-time collaboration, allowing multiple users to work on the same note simultaneously.
+
+## Real-time collaboration features
+
+When you collaborate on a note, you'll experience:
+
+- **Live updates**: See changes from other users as they type
+- **Cursor position indicators**: View where other collaborators are working
+- **Active user list**: See who's currently viewing or editing the note
+- **Automatic conflict resolution**: Changes merge seamlessly without conflicts
+
+## Seeing who's editing
+
+When others are actively working on a note, you'll see visual indicators:
+
+### Active collaborators indicator
+
+In the top-right corner of the note editor, you'll find:
+
+- **Colored avatars**: Each active collaborator is represented by a circular avatar with their initials
+- **Avatar colors**: Each user is assigned a unique color to help distinguish between collaborators
+- **Hover tooltips**: Hover over an avatar to see the full name of the collaborator
+
+<Info>
+  Avatars only appear when multiple users are actively viewing or editing the note. If you're alone, you'll just see the save status.
+</Info>
+
+### User count display
+
+Between the save status indicator and the avatar list, you'll see:
+
+- A dot separator when multiple users are connected
+- Only users who have the note open are shown (not just users with access)
+
+## Cursor position indicators
+
+See exactly where your collaborators are working in the document:
+
+<Steps>
+  <Step title="Colored cursors">
+    Each collaborator's cursor position is marked with a colored indicator that matches their avatar color. This helps you track who's working where.
+  </Step>
+
+  <Step title="Name labels">
+    When you hover near a collaborator's cursor, you'll see their name displayed, making it easy to identify who's editing each section.
+  </Step>
+
+  <Step title="Active position tracking">
+    Cursor positions update in real-time as collaborators move through the document. You'll see their cursor move as they type or navigate.
+  </Step>
+</Steps>
+
+<Tip>
+  When multiple people are editing the same section, colored cursors help you coordinate and avoid editing the same text simultaneously.
+</Tip>
+
+## Live updates
+
+Changes from collaborators appear instantly in your editor:
+
+### How live updates work
+
+- **Instant synchronization**: Changes from other users appear within milliseconds
+- **Seamless integration**: New content flows into the document without disrupting your work
+- **Preserved cursor position**: Your cursor stays in place even as others make changes elsewhere
+- **Real-time content updates**: Text, formatting, and structural changes all sync live
+
+### What gets synchronized
+
+- Text additions and deletions
+- Formatting changes (bold, italic, headings, etc.)
+- Lists and structured content
+- Links and images
+- Title changes
+
+<Note>
+  All collaborators must have Edit permission to make changes. Users with View permission can see live updates but cannot modify the note.
+</Note>
+
+## Conflict resolution
+
+Noteverse automatically handles conflicts when multiple users edit simultaneously:
+
+### Automatic merging
+
+- **Non-overlapping changes**: Edits in different parts of the document merge automatically
+- **Last write wins**: If two users edit the exact same text simultaneously, the most recent change takes precedence
+- **No manual intervention**: You don't need to manually resolve conflicts - the system handles it for you
+
+### Best practices for smooth collaboration
+
+<Steps>
+  <Step title="Watch cursor positions">
+    Keep an eye on where others are working to avoid editing the same section simultaneously.
+  </Step>
+
+  <Step title="Communicate in comments">
+    Use the comments feature to discuss changes or ask questions without editing the main content.
+  </Step>
+
+  <Step title="Work in different sections">
+    When possible, divide the work so collaborators focus on different parts of the note.
+  </Step>
+
+  <Step title="Trust auto-save">
+    Don't worry about saving - all changes from all collaborators are automatically saved.
+  </Step>
+</Steps>
+
+## Collaboration status indicators
+
+### Save status
+
+You'll always know the status of your work:
+
+- **Saving...**: Your changes are being sent to the server (shows a loading spinner)
+- **Saved**: All changes have been successfully saved (shows a green badge)
+
+<Info>
+  The save status applies to everyone's changes, not just yours. When you see "Saved," it means all recent changes from all collaborators have been saved.
+</Info>
+
+### Connection status
+
+The system maintains a real-time connection for collaboration:
+
+- Active connection enables live updates and cursor tracking
+- If your connection drops, you'll be automatically reconnected
+- Your changes are queued and synced when the connection is restored
+
+## Working with view-only collaborators
+
+Users with View permission can participate in limited ways:
+
+- They can see all live updates as they happen
+- They can see other collaborators' cursors and avatars
+- They can add comments to discuss the content
+- They cannot edit the title or content
+- The editor will appear disabled for them
+
+<Tip>
+  Use View permission when you want collaborators to follow along with changes but not make edits themselves.
+</Tip>
+
+## Owner information
+
+Every note displays the owner's information:
+
+- The owner's username and email appear below the title
+- If you're the owner, you'll see "You" next to your email
+- Only the owner can change sharing settings and permissions

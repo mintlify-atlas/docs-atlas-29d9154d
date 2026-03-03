@@ -1,0 +1,354 @@
+---
+title: Editor Overview
+description: Core editor architecture and implementation using Novel.sh and TipTap
+---
+
+## Introduction
+
+Noteverse's editor is built on top of [Novel.sh](https://novel.sh), which provides a powerful React wrapper around TipTap. The editor supports real-time collaboration, rich text formatting, media embeds, and custom extensions.
+
+## Architecture
+
+The editor is composed of several key components:
+
+- **EditorRoot**: Container that manages editor state
+- **EditorContent**: The main editing surface
+- **EditorBubble**: Floating toolbar for text formatting
+- **EditorCommand**: Slash command menu for quick actions
+- **Custom Extensions**: Collaborative features and enhanced functionality
+
+## Component Props
+
+<ParamField path="content" type="JSONContent" optional>
+  Initial editor content in JSON format from TipTap
+</ParamField>
+
+<ParamField path="onChange" type="(value: JSONContent) => void" required>
+  Callback fired when editor content changes
+</ParamField>
+
+<ParamField path="className" type="string" optional>
+  Additional CSS classes for the editor container
+</ParamField>
+
+<ParamField path="placeholder" type="string" optional>
+  Placeholder text shown when editor is empty
+</ParamField>
+
+<ParamField path="connectedUsers" type="any[]" optional>
+  Array of connected users for collaborative editing
+</ParamField>
+
+<ParamField path="userData" type="any" required>
+  Current user data for collaboration features
+</ParamField>
+
+<ParamField path="notesId" type="number" required>
+  Unique identifier for the note being edited
+</ParamField>
+
+<ParamField path="canEdit" type="boolean" required>
+  Whether the user has permission to edit
+</ParamField>
+
+<ParamField path="authToken" type="string" required>
+  Authentication token for API requests
+</ParamField>
+
+## Basic Usage
+
+<CodeGroup>
+```tsx Basic Editor
+import Editor from '@/components/editor/editor'
+import { useState } from 'react'
+import { JSONContent } from 'novel'
+
+export default function MyEditor() {
+  const [content, setContent] = useState<JSONContent>()
+
+  return (
+    <Editor
+      content={content}
+      onChange={setContent}
+      userData={{ id: 1, name: 'User' }}
+      notesId={123}
+      canEdit={true}
+      authToken="your-token"
+      placeholder="Start writing..."
+    />
+  )
+}
+```
+
+```tsx With Connected Users
+import Editor from '@/components/editor/editor'
+import { useState } from 'react'
+
+export default function CollaborativeEditor() {
+  const [content, setContent] = useState()
+  const [connectedUsers, setConnectedUsers] = useState([
+    { userId: 2, userName: 'Alice', position: 0, color: '#FF6B6B' },
+    { userId: 3, userName: 'Bob', position: 10, color: '#4ECDC4' }
+  ])
+
+  return (
+    <Editor
+      content={content}
+      onChange={setContent}
+      connectedUsers={connectedUsers}
+      userData={{ id: 1, name: 'You' }}
+      notesId={456}
+      canEdit={true}
+      authToken="your-token"
+    />
+  )
+}
+```
+</CodeGroup>
+
+## Real-Time Collaboration
+
+The editor integrates with Socket.IO for real-time collaboration features:
+
+### Cursor Position Tracking
+
+When content updates, the editor broadcasts cursor position:
+
+```tsx
+socket.emit(
+  'updateUser',
+  {
+    userId: userData.id,
+    notesId,
+    updates: { position: cursorPosition },
+  },
+  (response) => {
+    if (response.success) {
+      setLiveUsers(response.users)
+    }
+  },
+)
+```
+
+### Multiple Carets
+
+The editor displays colored carets for all connected users using the `MultipleCarets` extension:
+
+```tsx
+MultipleCarets.configure({
+  carets: connectedUsers.map((u) => ({
+    position: u.position,
+    name: u.userName,
+    color: u.color,
+    isActive: u.isActive || false,
+  })),
+})
+```
+
+## Editor Configuration
+
+### Editor Props
+
+The editor is configured with several TipTap properties:
+
+<Tabs>
+  <Tab title="DOM Events">
+    ```tsx
+    editorProps={{
+      handleDOMEvents: {
+        keydown: (_view, event) => handleCommandNavigation(event),
+      },
+    }}
+    ```
+    
+    Handles keyboard navigation for command menu.
+  </Tab>
+  
+  <Tab title="Image Handling">
+    ```tsx
+    editorProps={{
+      handlePaste: (view, event) => 
+        handleImagePaste(view, event, uploadFn),
+      handleDrop: (view, event, _slice, moved) =>
+        handleImageDrop(view, event, moved, uploadFn),
+    }}
+    ```
+    
+    Supports drag-and-drop and paste for images.
+  </Tab>
+  
+  <Tab title="Styling">
+    ```tsx
+    editorProps={{
+      attributes: {
+        class: `prose prose-sm dark:prose-invert 
+                prose-headings:font-title font-default 
+                focus:outline-none max-w-full p-0`,
+      },
+    }}
+    ```
+    
+    Uses Tailwind Typography plugin for content styling.
+  </Tab>
+</Tabs>
+
+## Bubble Menu
+
+The floating toolbar appears when text is selected:
+
+```tsx
+<EditorBubble
+  tippyOptions={{
+    placement: 'top',
+    zIndex: 10,
+  }}
+  className="flex w-fit max-w-[90vw] overflow-hidden rounded-md border"
+>
+  <NodeSelector open={openNode} onOpenChange={setOpenNode} />
+  <LinkSelector open={openLink} onOpenChange={setOpenLink} />
+  <TextButtons />
+  <ColorSelector open={openColor} onOpenChange={setOpenColor} />
+</EditorBubble>
+```
+
+See the [Selectors documentation](/components/editor/selectors) for detailed information.
+
+## Command Menu
+
+Press `/` to open the command menu for quick formatting:
+
+```tsx
+<EditorCommand className="z-20 h-auto max-h-[330px] overflow-y-auto">
+  <EditorCommandEmpty>No results</EditorCommandEmpty>
+  <EditorCommandList>
+    {suggestionItems.map((item) => (
+      <EditorCommandItem
+        value={item.title}
+        onCommand={(val) => item.command?.(val)}
+        key={item.title}
+      >
+        <div className="flex h-10 w-10 items-center justify-center">
+          {item.icon}
+        </div>
+        <div>
+          <p className="font-medium">{item.title}</p>
+          <p className="text-xs text-muted-foreground">
+            {item.description}
+          </p>
+        </div>
+      </EditorCommandItem>
+    ))}
+  </EditorCommandList>
+</EditorCommand>
+```
+
+See the [Slash Commands documentation](/components/editor/slash-commands) for available commands.
+
+## Image Upload
+
+The editor includes image upload functionality with the `ImageResizer` component:
+
+```tsx
+<EditorContent
+  // ... other props
+  slotAfter={<ImageResizer />}
+/>
+```
+
+Images can be:
+- Pasted from clipboard
+- Dragged and dropped
+- Uploaded via slash command
+
+<Note>
+  You need to implement the `uploadFn` function in `image-upload.ts` to handle your image storage solution.
+</Note>
+
+## Extensions
+
+The editor uses a combination of built-in and custom extensions:
+
+```tsx
+extensions={[
+  ...defaultExtensions,
+  slashCommand,
+  TextSearch,
+  MultipleCarets.configure({
+    carets: connectedUsers.map((u) => ({
+      position: u.position,
+      name: u.userName,
+      color: u.color,
+      isActive: u.isActive || false,
+    })),
+  }),
+]}
+```
+
+See the [Extensions documentation](/components/editor/extensions) for the complete list.
+
+## Accessing the Editor Instance
+
+The editor instance is managed through context:
+
+```tsx
+import { useEditorContext } from '@/context/editorContext'
+
+function MyComponent() {
+  const { editor, setEditor } = useEditorContext()
+  
+  // Use editor instance
+  const getContent = () => {
+    return editor.getJSON()
+  }
+  
+  const clearContent = () => {
+    editor.commands.clearContent()
+  }
+}
+```
+
+## TypeScript Interface
+
+```tsx
+interface EditorProp {
+  content?: JSONContent
+  onChange: (value: JSONContent) => void
+  className?: string
+  placeholder?: string
+  connectedUsers?: any
+  userData: any
+  notesId: number
+  canEdit: boolean
+  authToken: string
+}
+```
+
+## Styling
+
+The editor includes custom ProseMirror styles:
+
+```tsx
+import './style/prosemirror.css'
+```
+
+The editor container can be styled with Tailwind classes:
+
+```tsx
+<EditorContent
+  className={cn('border rounded-xl w-full pb-10', className)}
+/>
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Extensions" icon="puzzle-piece" href="/components/editor/extensions">
+    Learn about TipTap extensions and configuration
+  </Card>
+  <Card title="Slash Commands" icon="slash" href="/components/editor/slash-commands">
+    Explore available slash commands
+  </Card>
+  <Card title="Selectors" icon="cursor" href="/components/editor/selectors">
+    Understand the bubble menu selectors
+  </Card>
+</CardGroup>
