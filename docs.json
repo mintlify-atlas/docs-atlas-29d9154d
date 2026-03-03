@@ -104,6 +104,13 @@
             "pages": [
               "api/users/profile"
             ]
+          },
+          {
+            "group": "Utilities",
+            "pages": [
+              "api/upload",
+              "api/email"
+            ]
           }
         ]
       },

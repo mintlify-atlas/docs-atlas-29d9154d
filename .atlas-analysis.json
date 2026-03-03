@@ -133,7 +133,7 @@
   "publicApiSurface": [
     "POST /api/auth/signup",
     "POST /api/auth/signin",
-    "GET /api/auth/verify",
+    "POST /api/auth/verify",
     "POST /api/notes",
     "GET /api/notes",
     "PATCH /api/notes",

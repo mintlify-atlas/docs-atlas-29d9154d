@@ -1,0 +1,167 @@
+---
+title: Upload file
+description: Upload images and files to Vercel Blob storage
+---
+
+Upload files (typically images) to Vercel Blob storage for use in notes and other content.
+
+## Endpoint
+
+```
+POST /api/upload
+```
+
+## Authentication
+
+This endpoint requires the `BLOB_READ_WRITE_TOKEN` environment variable to be configured on the server.
+
+## Request
+
+### Headers
+
+<ParamField header="x-vercel-filename" type="string" default="file.txt">
+  The desired filename for the uploaded file
+</ParamField>
+
+<ParamField header="content-type" type="string" default="text/plain">
+  The MIME type of the file being uploaded (e.g., `image/png`, `image/jpeg`)
+</ParamField>
+
+### Body
+
+The request body should be the raw file content (binary data).
+
+## Response
+
+<ResponseField name="url" type="string">
+  The public URL where the uploaded file can be accessed
+</ResponseField>
+
+<ResponseField name="downloadUrl" type="string">
+  Alternative download URL for the file
+</ResponseField>
+
+<ResponseField name="pathname" type="string">
+  The path of the file in Vercel Blob storage
+</ResponseField>
+
+<ResponseField name="contentType" type="string">
+  The content type of the uploaded file
+</ResponseField>
+
+<ResponseField name="contentDisposition" type="string">
+  Content disposition header value
+</ResponseField>
+
+## Examples
+
+### Upload an image
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://your-domain.com/api/upload \
+  -H "x-vercel-filename: profile.png" \
+  -H "content-type: image/png" \
+  --data-binary @profile.png
+```
+
+```javascript JavaScript
+const file = document.querySelector('input[type="file"]').files[0];
+
+const response = await fetch('/api/upload', {
+  method: 'POST',
+  headers: {
+    'x-vercel-filename': file.name,
+    'content-type': file.type,
+  },
+  body: file,
+});
+
+const blob = await response.json();
+console.log('File uploaded to:', blob.url);
+```
+
+```typescript TypeScript
+async function uploadImage(file: File): Promise<string> {
+  const response = await fetch('/api/upload', {
+    method: 'POST',
+    headers: {
+      'x-vercel-filename': file.name,
+      'content-type': file.type,
+    },
+    body: file,
+  });
+
+  if (!response.ok) {
+    throw new Error('Upload failed');
+  }
+
+  const blob = await response.json();
+  return blob.url;
+}
+```
+
+</CodeGroup>
+
+### Response example
+
+```json
+{
+  "url": "https://public.blob.vercel-storage.com/profile-abc123.png",
+  "downloadUrl": "https://public.blob.vercel-storage.com/profile-abc123.png?download=1",
+  "pathname": "profile-abc123.png",
+  "contentType": "image/png",
+  "contentDisposition": "inline; filename=\"profile.png\""
+}
+```
+
+## Error responses
+
+### Missing token
+
+```json
+{
+  "error": "Missing BLOB_READ_WRITE_TOKEN. Don't forget to add that to your .env file."
+}
+```
+
+**Status code:** `401 Unauthorized`
+
+## Implementation details
+
+The upload endpoint:
+- Runs on Vercel's Edge Runtime for optimal performance
+- Uses Vercel Blob storage with public access
+- Automatically constructs filenames based on content type
+- Returns immediately with the public URL
+
+<Note>
+  Files uploaded through this endpoint are publicly accessible. Do not upload sensitive information.
+</Note>
+
+## Use cases
+
+- **Editor images**: Upload images pasted or dropped into the rich text editor
+- **Profile pictures**: Store user avatar images
+- **Note attachments**: Upload files to include in notes
+- **Media embeds**: Host images and media for embedding
+
+## See also
+
+<CardGroup cols={2}>
+  <Card
+    title="Rich text editor"
+    icon="pen-fancy"
+    href="/features/rich-text-editor"
+  >
+    Learn how the editor uses this endpoint for image uploads
+  </Card>
+  <Card
+    title="Environment variables"
+    icon="gear"
+    href="/configuration/environment-variables"
+  >
+    Configure BLOB_READ_WRITE_TOKEN
+  </Card>
+</CardGroup>

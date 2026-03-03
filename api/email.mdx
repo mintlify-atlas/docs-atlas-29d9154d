@@ -1,0 +1,248 @@
+---
+title: Send email
+description: Send email verification and notification emails via Resend
+---
+
+Send transactional emails for user verification and notifications using the Resend email service.
+
+## Endpoint
+
+```
+POST /api/email
+```
+
+## Authentication
+
+This endpoint requires the `RESEND_TOKEN` environment variable to be configured on the server.
+
+<Warning>
+  This is an internal endpoint typically called by the signup flow. Production applications should add authentication and rate limiting.
+</Warning>
+
+## Request
+
+### Body parameters
+
+<ParamField body="email" type="string" required>
+  The recipient's email address
+</ParamField>
+
+<ParamField body="subject" type="string" required>
+  The email subject line
+</ParamField>
+
+<ParamField body="url" type="string" required>
+  The verification URL to include in the email (typically contains the verification token)
+</ParamField>
+
+## Response
+
+### Success response
+
+<ResponseField name="message" type="string">
+  Success message: "Email sent"
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Response data from Resend API containing the email ID
+</ResponseField>
+
+**Status code:** `200 OK`
+
+### Error responses
+
+<ResponseField name="error" type="string">
+  Error description
+</ResponseField>
+
+<ResponseField name="message" type="object">
+  Additional error details from Resend (when applicable)
+</ResponseField>
+
+**Status codes:** `400 Bad Request`
+
+## Examples
+
+### Send verification email
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://your-domain.com/api/email \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "subject": "Verify your Noteverse account",
+    "url": "https://your-domain.com/verify?token=abc123"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('/api/email', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    email: 'user@example.com',
+    subject: 'Verify your Noteverse account',
+    url: `https://your-domain.com/verify?token=${verificationToken}`,
+  }),
+});
+
+const result = await response.json();
+console.log('Email sent:', result.message);
+```
+
+```typescript TypeScript
+interface EmailRequest {
+  email: string;
+  subject: string;
+  url: string;
+}
+
+async function sendVerificationEmail(
+  email: string,
+  token: string
+): Promise<void> {
+  const response = await fetch('/api/email', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      email,
+      subject: 'Verify your Noteverse account',
+      url: `${window.location.origin}/verify?token=${token}`,
+    } as EmailRequest),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error);
+  }
+}
+```
+
+</CodeGroup>
+
+### Success response
+
+```json
+{
+  "message": "Email sent",
+  "data": {
+    "id": "re_abc123xyz"
+  }
+}
+```
+
+### Error responses
+
+#### Missing email
+
+```json
+{
+  "error": "Email is required"
+}
+```
+
+#### Missing verification URL
+
+```json
+{
+  "error": "Verification ID is required"
+}
+```
+
+#### Resend API error
+
+```json
+{
+  "error": "Error sending email",
+  "message": {
+    "statusCode": 422,
+    "message": "Invalid email address"
+  }
+}
+```
+
+## Email template
+
+The verification email uses a custom React Email template (`VerificationEmail`) that includes:
+- Noteverse branding
+- Clear call-to-action button
+- Verification URL link
+- Professional styling
+
+The email is rendered using `@react-email/render` before being sent through Resend.
+
+## Implementation details
+
+```typescript
+// From src/app/api/email/route.ts:31-36
+const response = await resend.emails.send({
+  from: 'Noteverse <noteverse@falah.in>',
+  to: [email],
+  subject: subject,
+  html: emailHtml,
+})
+```
+
+- **Sender**: `Noteverse <noteverse@falah.in>`
+- **Service**: Resend email API
+- **Format**: HTML rendered from React components
+- **Runtime**: Next.js API route
+
+<Note>
+  Configure your Resend account and verify the sender domain before using this endpoint in production.
+</Note>
+
+## Use cases
+
+- **Email verification**: Send verification links to new users after signup
+- **Password reset**: Send password reset links (requires additional implementation)
+- **Notifications**: Send important account notifications
+
+## Security considerations
+
+<Warning>
+  This endpoint does not verify the caller's identity. In production:
+  - Add authentication to prevent abuse
+  - Implement rate limiting per email address
+  - Validate email addresses before sending
+  - Use environment-specific sender addresses
+</Warning>
+
+## See also
+
+<CardGroup cols={2}>
+  <Card
+    title="Signup endpoint"
+    icon="user-plus"
+    href="/api/auth/signup"
+  >
+    See how signup triggers verification emails
+  </Card>
+  <Card
+    title="Verify endpoint"
+    icon="check-circle"
+    href="/api/auth/verify"
+  >
+    Complete the verification flow
+  </Card>
+  <Card
+    title="Environment variables"
+    icon="gear"
+    href="/configuration/environment-variables"
+  >
+    Configure RESEND_TOKEN
+  </Card>
+  <Card
+    title="Authentication"
+    icon="lock"
+    href="/configuration/authentication"
+  >
+    Learn about the full auth flow
+  </Card>
+</CardGroup>
